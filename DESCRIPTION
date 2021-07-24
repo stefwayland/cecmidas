@@ -1,13 +1,16 @@
 Package: cecmidas
-Title: What the Package Does (One Line, Title Case)
+Title: Connect to the California Energy Commission MIDAS Rate Database API
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Stefanie",
+           family = "Wayland",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+           email = "",
+           comment = c(ORCID = "0000-0003-2733-5719"))
+Description: This package provides functions to easily retreive data from the 
+    California Energy Commission's (CEC) MIDAS database of electricity rates. 
+    MIDAS is a read-only database providing a nearly complete list of retail electricity
+    rates for California. It also provides real-time carbon emissions through a partnership with WattTime.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -17,6 +20,8 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: 
+    crul,
+    jsonlite,
     R6
 URL: https://github.com/stefwayland/cecmidas
 BugReports: https://github.com/stefwayland/cecmidas/issues
