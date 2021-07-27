@@ -86,54 +86,29 @@ MIDAS <- R6::R6Class("MIDAS",
                         private$token <- res$response_headers$token
                         private$token_dt <- Sys.time()
                         invisible(self)
-                      }#,
-
-                      #' @description
-                      #' Reset or change login password
-                      #' @param ... additional parameters passed to curl
-                      # reset_password = function(...) {
-                      #   cli <- crul::HttpClient$new(self$midas_url, opts = list(...))
-                      #   res <- cli$get(path = "password",
-                      #                  query = list(username = private$username),
-                      #                  encode = "json")
-                      #   res$raise_for_status()
-                      #   res$raise_for_ct_json()
-                      #   js <- jsonlite::fromJSON(res$parse("UTF-8"))
-                      #
-                      #   if (!is.null(js$ok)) {
-                      #     print(js$ok)
-                      #     return(invisible(self))
-                      #   } else if (!is.null(js$error)) {
-                      #     stop(js$error)
-                      #   }
-                      # },
+                      },
 
                       #' @description
                       #' Get real time or historical rate information
-                      #' @param ba atomic character one of the balancing authority abbreviations
-                      #' @param starttime atomic POSIXt may be omitted if endtime is also omitted. Character is converted to POSIX in the system time zone
-                      #' @param endtime atomic POSIXt optional, if omitted, defaults to current time. Character is converted to POSIX in the system time zone
-                    #   price = function(ba = NA, starttime = NA, endtime = NA, ...) {
-                    #     if(is.na(token) | isTRUE(Sys.time() - private$token_dt > 1800)) self$login()
-                    #     if (is.na(ba)) ba <- private$ba
-                    #     if (is.na(ba)) stop("Provide balancing authority (ba) either in function or as a parameter when creating a new SGIP object.")
-                    #     if (is.character(starttime)) starttime <- as.POSIXct(starttime)
-                    #     if (is.character(endtime)) endtime <- as.POSIXct(endtime)
-                    #     stopifnot(ba %in% self$ba_list)
-                    #     cli <- crul::HttpClient$new(
-                    #       self$midas_url,
-                    #       headers = list(Authorization = paste("Bearer", private$token)),
-                    #       opts = list(...)
-                    #     )
-                    #     res <- cli$get(path = "sgipmoer",
-                    #                    body = list(ba = private$ba,
-                    #                                starttime = format(starttime, "%FT%T%z"),
-                    #                                endtime = format(endtime, "%FT%T%z")),
-                    #                    encode = "json")
-                    #     res$raise_for_status()
-                    #     res$raise_for_ct_json()
-                    #     js <- jsonlite::fromJSON(res$parse("UTF-8"))
-                    #   }
+                      #' @param rin full RIN with dashes for request
+                      #' @param query_type atomic character One of "realtime" or "alldata".
+                      value = function(rin, query_type = "realtime", ...) {
+                        if(is.na(private$token_dt) | isTRUE(Sys.time() - private$token_dt > 600)) self$get_token()
+                        if (is.na(rin)) stop("Must provide RIN (rin).")
+                        if (!query_type %in% c("realtime", "alldata")) stop("query_type must be either 'realtime' or 'alldata'")
+                        cli <- crul::HttpClient$new(
+                          self$midas_url,
+                          headers = list(Accept = "application/json",
+                                         Authorization = paste("Bearer", private$token)),
+                          opts = list(...)
+                        )
+                        res <- cli$get(path = "api/valuedata",
+                                       query = list(id = rin,
+                                                   querytype = query_type))
+                        res$raise_for_status()
+                        res$raise_for_ct_json()
+                        jsonlite::fromJSON(res$parse("UTF-8"))
+                      }
                     ),
                     active = list(
 
