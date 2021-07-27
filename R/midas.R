@@ -79,11 +79,11 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' Get a token. This will usually be automatic when using other functions. MIDAS tokens are valid for 10 minutes according to the documentation.
                       #' @param ... additional parameters passed to curl
                       get_token = function(...) {
-                        cli <- crul::HttpClient$new(self$midas_url, opts = list(...))
-                        res <- cli$get(path = "api/Token", headers = list(Authorization = "Basic", jsonlite::base64_enc(paste(private$username, private$password, sep = ":"))))
+                        cli <- crul::HttpClient$new(self$midas_url, opts = list(...),
+                                                    headers = list(Authorization = paste("Basic", jsonlite::base64_enc(paste(private$username, private$password, sep = ":")))))
+                        res <- cli$get(path = "api/Token")
                         res$raise_for_status()
-                        res$raise_for_ct_json()
-                        private$token <- jsonlite::fromJSON(res$parse("UTF-8"))
+                        private$token <- res$response_headers$token
                         private$token_dt <- Sys.time()
                         invisible(self)
                       }#,
