@@ -142,8 +142,12 @@ MIDAS <- R6::R6Class("MIDAS",
                         res <- cli$get(path = "api/valuedata",
                                        query = list(LookupTable = table_name))
                         res$raise_for_status()
-                        res$raise_for_ct_json()
-                        jsonlite::fromJSON(res$parse("UTF-8"))
+                        if (response_encoding == "xml") {
+
+                        } else {
+                          res$raise_for_ct_json()
+                          return(jsonlite::fromJSON(res$parse("UTF-8")))
+                        }
                       }
                     ),
                     active = list(
