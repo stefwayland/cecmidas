@@ -9,7 +9,7 @@ MIDAS <- R6::R6Class("MIDAS",
                     public = list(
 
                       #' @field base URL for SGIP API
-                      midas_url = "https://cecwats2.org",
+                      midas_url = "https://midasapi.energy.ca.gov",
 
                       #' @description
                       #' Create a new MIDAS connection
