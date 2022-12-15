@@ -20,21 +20,19 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @return a new `MIDAS` connection object.
                       initialize = function(username,
                                             password,
-                                            email = NA,
-                                            fullname = NA,
-                                            organization = NA) {
-                        stopifnot(is.character(username), length(username) == 1)
-                        stopifnot(is.character(password), length(password) == 1)
-                        stopifnot(is.character(fullname), length(fullname) == 1)
-                        stopifnot(is.character(email), length(email) == 1)
-                        stopifnot(is.character(organization) | is.na(organization), length(organization) == 1)
+                                            email = NA_character_,
+                                            fullname = NA_character_,
+                                            organization = NA_character_) {
+                        checkmate::check_character(username, len = 1, any.missing = FALSE)
+                        checkmate::check_character(password, len = 1, any.missing = FALSE)
+                        checkmate::check_character(fullname, len = 1, any.missing = FALSE)
+                        checkmate::check_character(email, len = 1, any.missing = FALSE)
+                        checkmate::check_character(organization, len = 1)
                         private$username <- username
                         private$password <- password
                         private$email <- email
                         private$fullname <- fullname
-                        if (!is.null(organization)) {
-                          private$organization <- organization
-                        }
+                        private$organization <- organization
                       },
 
                       #' @description
@@ -51,7 +49,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @description Set the preferred data format for responses from value requests. The default for cecmidas is JSON, but the MIDAS API will return either json or xml.
                       #' @param format atomic character One of "json" or "xml"
                       set_data_format = function(format) {
-                        if (!format %in% c("json", "xml")) stop("Format must be either 'json' or 'xml'")
+                        checkmate::assert_choice(format, c("json", "xml"))
                         private$data_format <- format
                         invisible(self)
                       },
@@ -84,31 +82,39 @@ MIDAS <- R6::R6Class("MIDAS",
 
                       #' @title Get a token to authenticate data requests
                       #' @description
-                      #' Get a token. This will usually be automatic when using other functions. MIDAS tokens are valid for 10 minutes according to the CEC documentation.
+                      #' Get a token. This will usually be automatic when using other functions.
+                      #' MIDAS tokens are valid for 10 minutes according to the CEC documentation.
+                      #' @param new_token logical Force requesting a new token, FALSE by default
                       #' @param ... additional parameters passed to curl
-                      get_token = function(...) {
-                        cli <- crul::HttpClient$new(self$midas_url, opts = list(...),
-                                                    headers = list(Authorization = paste("Basic", jsonlite::base64_enc(paste(private$username, private$password, sep = ":")))))
-                        res <- cli$get(path = "api/Token")
-                        res$raise_for_status()
-                        private$token <- res$response_headers$token
-                        private$token_dt <- Sys.time()
+                      get_token = function(new_token = FALSE, ...) {
+                        checkmate::assert_logical(new_token, len = 1, any.missing = FALSE)
+                        if (is.na(private$token_dt) | isTRUE(Sys.time() - private$token_dt >= 600) | new_token) {
+                          cli <- crul::HttpClient$new(self$midas_url, opts = list(...),
+                                                      headers = list(Authorization = paste("Basic", jsonlite::base64_enc(paste(private$username, private$password, sep = ":")))))
+                          res <- cli$get(path = "api/Token")
+                          res$raise_for_status()
+                          private$token <- res$response_headers$token
+                          private$token_dt <- Sys.time()
+                        }
                         invisible(self)
                       },
 
                       #' @title Get value data from MIDAS
                       #' @description
-                      #' Get real time or historical rate information
-                      #' @param rin full RIN with dashes for request
-                      #' @param query_type atomic character One of "realtime" or "alldata".
+                      #' Get real-time or current and forecast rate information
+                      #' @param rin character Single RIN including dashes to request
+                      #' @param query_type character One of "realtime" or "alldata"
+                      #' @param new_token logical Force requesting a new token, FALSE by default
+                      #' @param ... additional parameters passed to curl
                       value = function(rin,
                                        query_type = "realtime",
                                        response_encoding = private$data_format,
+                                       new_token = FALSE,
                                        ...) {
-                        if (is.na(private$token_dt) | isTRUE(Sys.time() - private$token_dt > 600)) self$get_token()
-                        if (is.na(rin)) stop("Must provide RIN (rin).")
-                        if (!query_type %in% c("realtime", "alldata")) stop("query_type must be either 'realtime' or 'alldata'")
-                        if (!response_encoding %in% c("json", "xml")) stop("response_encoding must be either 'json' or 'xml'")
+                        checkmate::assert_character(rin, any.missing = FALSE, len = 1)
+                        checkmate::assert_choice(query_type, c("realtime", "alldata"))
+                        checkmate::assert_choice(response_encoding, c("json", "xml"))
+                        self$get_token(new_token = new_token, ...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
                           headers = list(Accept = paste0("application/", private$data_format),
@@ -127,10 +133,14 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @description
                       #' Get lookup table information. Possible lookup tables are currently Country, Daytype, Distribution, Enduse, Energy, Location, Ratetype, Sector, State, and TimeZone.
                       #' @param table_name atomic character lookup table name.
+                      #' @param new_token logical Force requesting a new token, FALSE by default
+                      #' @param ... additional parameters passed to curl
                       lookups = function(table_name,
                                          response_encoding = private$data_format,
+                                         new_token = FALSE,
                                          ...) {
-                        if (is.na(private$token_dt) | isTRUE(Sys.time() - private$token_dt > 600)) self$get_token()
+                        checkmate::check_choice(table_name, c())
+                        self$get_token(new_token = new_token, ...)
                         if (is.na(table_name)) stop("Must provide lookup table name.")
                         if (!response_encoding %in% c("json", "xml")) stop("response_encoding must be either 'json' or 'xml'")
                         cli <- crul::HttpClient$new(

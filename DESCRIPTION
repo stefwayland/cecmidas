@@ -8,9 +8,11 @@ Authors@R:
            email = "",
            comment = c(ORCID = "0000-0003-2733-5719"))
 Description: This package provides functions to easily retreive data from the 
-    California Energy Commission's (CEC) MIDAS database of electricity rates. 
-    MIDAS is a read-only database providing a nearly complete list of retail electricity
-    rates for California. It also provides real-time carbon emissions through a partnership with WattTime.
+    California Energy Commission's (CEC) Market Informed Demand Automation Server (MIDAS) 
+    database of electricity rates. 
+    MIDAS is a database and API providing real-time prices for time-varying retail electricity
+    rates from large utilities and energy providers in California. It also provides 
+    real-time carbon emissions from WattTime's Self-Generation Incentive Program (SGIP) API.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -21,6 +23,7 @@ Suggests:
     vcr (>= 0.6.0)
 Config/testthat/edition: 3
 Imports: 
+    checkmate,
     crul,
     jsonlite,
     R6
