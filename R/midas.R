@@ -101,7 +101,8 @@ MIDAS <- R6::R6Class("MIDAS",
 
                       #' @title Get value data from MIDAS
                       #' @description
-                      #' Get real-time or current and forecast rate information
+                      #' Get real-time or current and forecast rate information.
+                      #' Passing an empty RIN will return the XSD for formatting uploads.
                       #' @param rin character Single RIN including dashes to request
                       #' @param query_type character One of "realtime" or "alldata"
                       #' @param new_token logical Force requesting a new token, FALSE by default
@@ -153,11 +154,35 @@ MIDAS <- R6::R6Class("MIDAS",
                                        query = list(LookupTable = table_name))
                         res$raise_for_status()
                         if (response_encoding == "xml") {
-
+                          #TODO: Add xml support
                         } else {
                           res$raise_for_ct_json()
                           return(jsonlite::fromJSON(res$parse("UTF-8")))
                         }
+                      },
+
+                      #' @title Upload a new rate or rate change
+                      #' @description Requires special CEC approval. Upload access is
+                      #' generally only granted to load serving entities, with rare exceptions.
+                      #' @param rin
+                      #' @param filename path to file with XML to upload
+                      upload_rate = function(filename, ...) {
+                        checkmate::assert_file(filename, access = "r")
+                        xml_data <- readr::read_file(filename)
+                        # print(xml_data)
+                        self$get_token(...)
+                        cli <- crul::HttpClient$new(
+                          self$midas_url,
+                          headers = list(Accept = paste0("application/", private$data_format),
+                                         `Content-Type` = "text/xml",
+                                         Authorization = paste("Bearer", private$token)),
+                          opts = list(...)
+                        )
+                        print(cli)
+                        res <- cli$post(path = "api/valuedata",
+                                        body = list(data = xml_data))
+                        print(res)
+                        res$raise_for_status()
                       }
                     ),
                     active = list(

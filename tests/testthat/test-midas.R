@@ -1,10 +1,9 @@
 source("R/midas.R")
-m <- MIDAS$new(username = "<user name>",
-               password = "<password>",
                email = "<email>",
                fullname = "<full name>",
                organization = "<organization>")
 # m$register()
-m$get_token()
-m$value(rin = "USCA-PGPG-EV2A-0000", query_type = "realtime", verbose = TRUE)
+m$get_token(new_token = TRUE)
+m$value(rin = "USCA-TSTS-HTOU-0000", query_type = "realtime", verbose = TRUE)
 m$lookups(table_name = "TimeZone", verbose = TRUE)
+m$upload_rate(filename = "./tests/MIDAS_Test_Rate_24TOU.xml")
