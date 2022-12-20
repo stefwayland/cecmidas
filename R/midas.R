@@ -9,7 +9,6 @@ MIDAS <- R6::R6Class("MIDAS",
                     public = list(
 
                       #' @field base URL for SGIP API
-                      midas_url = "https://midasapi.energy.ca.gov",
 
                       #' @description
                       #' Create a new MIDAS connection
@@ -36,7 +35,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       },
 
                       #' @description
-                      #' Print some important characteristics of the SGIP object
+                      #' Print some important characteristics of the MIDAS object
                       print = function() {
                         print("MIDAS rate API service")
                         print(paste("username:", private$username))
@@ -161,15 +160,43 @@ MIDAS <- R6::R6Class("MIDAS",
                         }
                       },
 
+                      #' @title Get holiday table data from MIDAS
+                      #' @description
+                      #' Get holiday table information.
+                      #' @param response_encoding set to MIDAS$data_format, "json" by default.
+                      #' @param new_token logical Force requesting a new token, FALSE by default
+                      #' @param ... additional parameters passed to curl
+                      holiday = function(response_encoding = private$data_format,
+                                         new_token = FALSE,
+                                         ...) {
+                        checkmate::assert_choice(response_encoding, c("json", "xml"))
+                        self$get_token(new_token = new_token, ...)
+                        cli <- crul::HttpClient$new(
+                          self$midas_url,
+                          headers = list(Accept = paste0("application/", private$data_format),
+                                         Authorization = paste("Bearer", private$token)),
+                          opts = list(...)
+                        )
+                        res <- cli$get(path = "api/holiday")
+                        res$raise_for_status()
+                        if (response_encoding == "xml") {
+                          #TODO: Add xml support
+                        } else {
+                          res$raise_for_ct_json()
+                          return(jsonlite::fromJSON(res$parse("UTF-8")))
+                        }
+                      },
+
                       #' @title Upload a new rate or rate change
                       #' @description Requires special CEC approval. Upload access is
                       #' generally only granted to load serving entities, with rare exceptions.
-                      #' @param rin
                       #' @param filename path to file with XML to upload
-                      upload_rate = function(filename, ...) {
+                      #' @param verbose logical set to TRUE for copious printed output
+                      upload_rate = function(filename, verbose = FALSE, ...) {
                         checkmate::assert_file(filename, access = "r")
+                        checkmate::assert_logical(verbose, len = 1, any.missing = FALSE)
                         xml_data <- readr::read_file(filename)
-                        # print(xml_data)
+                        if(verbose) print(xml_data)
                         self$get_token(...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
@@ -178,10 +205,45 @@ MIDAS <- R6::R6Class("MIDAS",
                                          Authorization = paste("Bearer", private$token)),
                           opts = list(...)
                         )
-                        print(cli)
+                        if(verbose) {
+                          print("HTTP header")
+                          print(cli)
+                        }
                         res <- cli$post(path = "api/valuedata",
                                         body = list(data = xml_data))
-                        print(res)
+                        if(verbose) {
+                          print(res)
+                        }
+                        res$raise_for_status()
+                      },
+
+                      #' Upload new holidays
+                      #' @description Requires special CEC approval. Upload access is
+                      #' generally only granted to load serving entities, with rare exceptions.
+                      #' @param filename path to file with XML to upload
+                      #' @param verbose logical set to TRUE for copious printed output
+                      #' @param ... additional parameter passed to crul options
+                      upload_holiday = function(filename, verbose = FALSE, ...) {
+                        checkmate::assert_file(filename, access = "r")
+                        checkmate::assert_logical(verbose, len = 1, any.missing = FALSE)
+                        xml_data <- readr::read_file(filename)
+                        if(verbose) print(xml_data)
+                        self$get_token(...)
+                        cli <- crul::HttpClient$new(
+                          self$midas_url,
+                          headers = list(Accept = paste0("application/", private$data_format),
+                                         `Content-Type` = "text/xml",
+                                         Authorization = paste("Bearer", private$token)),
+                          opts = list(...)
+                        )
+                        if(verbose) {
+                          print(cli)
+                        }
+                        res <- cli$post(path = "api/holiday",
+                                        body = list(data = xml_data))
+                        if(verbose) {
+                          print(res)
+                        }
                         res$raise_for_status()
                       }
                     ),
