@@ -9,6 +9,7 @@ MIDAS <- R6::R6Class("MIDAS",
                     public = list(
 
                       #' @field base URL for SGIP API
+                      midas_url = "https://midasapi.energy.ca.gov",
 
                       #' @description
                       #' Create a new MIDAS connection
@@ -195,7 +196,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       upload_rate = function(filename, verbose = FALSE, ...) {
                         checkmate::assert_file(filename, access = "r")
                         checkmate::assert_logical(verbose, len = 1, any.missing = FALSE)
-                        xml_data <- readr::read_file(filename)
+                        xml_data <- paste(readLines(filename, n = -1), collapse = "\n")
                         if(verbose) print(xml_data)
                         self$get_token(...)
                         cli <- crul::HttpClient$new(
@@ -226,7 +227,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       upload_holiday = function(filename, verbose = FALSE, ...) {
                         checkmate::assert_file(filename, access = "r")
                         checkmate::assert_logical(verbose, len = 1, any.missing = FALSE)
-                        xml_data <- readr::read_file(filename)
+                        xml_data <- paste(readLines(filename, n = -1), collapse = "\n")
                         if(verbose) print(xml_data)
                         self$get_token(...)
                         cli <- crul::HttpClient$new(
