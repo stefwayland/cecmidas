@@ -101,7 +101,7 @@ MIDAS <- R6::R6Class("MIDAS",
 
                       #' @title Get value data from MIDAS
                       #' @description
-                      #' Get real-time or current and forecast rate information.
+                      #' Get list of available rates from MIDAS.
                       #' Passing an empty RIN will return the XSD for formatting uploads.
                       #' @param rin character Single RIN including dashes to request
                       #' @param query_type character One of "realtime" or "alldata"
@@ -127,7 +127,38 @@ MIDAS <- R6::R6Class("MIDAS",
                                                     querytype = query_type))
                         res$raise_for_status()
                         res$raise_for_ct_json()
-                        jsonlite::fromJSON(res$parse("UTF-8"))
+                        lst <- jsonlite::fromJSON(res$parse("UTF-8"))
+                        lst$ValueInformation <- lst$ValueInformation[order(lst$ValueInformation$DateStart, lst$ValueInformation$TimeStart),]
+                        lst
+                      },
+
+                      #' @title Get RIN list from MIDAS
+                      #' @description
+                      #' Get real-time or current and forecast rate information.
+                      #' Passing an empty RIN will return the XSD for formatting uploads.
+                      #' @param signal_type integer One of 0 = ALL signal types, 1 = Tariff signals,
+                      #' 2 = Greenhouse Gas signals, 3 = Flex Alert signals
+                      #' @param new_token logical Force requesting a new token, FALSE by default
+                      #' @param ... additional parameters passed to curl
+                      rins = function(signal_type = 1,
+                                       response_encoding = private$data_format,
+                                       new_token = FALSE,
+                                       ...) {
+                        checkmate::assert_choice(signal_type, 0:3)
+                        checkmate::assert_choice(response_encoding, c("json", "xml"))
+                        self$get_token(new_token = new_token, ...)
+                        cli <- crul::HttpClient$new(
+                          self$midas_url,
+                          headers = list(Accept = paste0("application/", private$data_format),
+                                         Authorization = paste("Bearer", private$token)),
+                          opts = list(...)
+                        )
+                        res <- cli$get(path = "api/valuedata",
+                                       query = list(signaltype = signal_type))
+                        res$raise_for_status()
+                        res$raise_for_ct_json()
+                        df <- jsonlite::fromJSON(res$parse("UTF-8"))
+                        df[order(df$RateID),]
                       },
 
                       #' @title Get lookup table data from MIDAS
