@@ -22,7 +22,7 @@ p2 <- tou[prices, .(DateStart, TimeStart, value, Unit), on = .(DateStart <= Date
 # Create datetime fields for conversion to UTC
 p2[, starttime := as.POSIXct(DateStart, time = TimeStart, tz = "America/Los_Angeles")]
 p2[, c("DateStart", "TimeStart") := IDateTime(with_tz(starttime, tz = "UTC"))]
-p2[, c("DateEnd", "TimeEnd") := IDateTime(with_tz(starttime + 3600, tz = "UTC"))]
+p2[, c("DateEnd", "TimeEnd") := IDateTime(with_tz(starttime + 3599, tz = "UTC"))]
 
 
 # Convert to XML for upload -------------------------------------------------

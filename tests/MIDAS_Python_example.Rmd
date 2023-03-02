@@ -54,7 +54,6 @@ url = base_url + '/registration'
 headers =  {"Content-Type":"application/json"}
 
 response = requests.post(url, data=json.dumps(registration_info), headers=headers)
-requests.po
 
 #Prints below will return 200 response for successful call
 print(response)
@@ -179,7 +178,7 @@ import sys
 holidayFileName = 'MIDAS_Test_Holidays.xml'
 
 headers = {'accept': 'application/json', 'Content-Type': 'text/xml', 'Authorization': "Bearer " + token}
-url = 'http://accmidasapi/api/holiday'
+url = base_url + '/holiday'
 holidayFile = open(holidayFileName)
 xml = holidayFile.read()
 holidayFile.close()
@@ -197,7 +196,7 @@ DistributionCode = 'TS'
 EnergyCode = 'TS'
 
 headers = {'accept': 'application/json', 'Authorization': "Bearer " + token}
-url = 'http://accmidasapi/api/historicallist?' + 'DistributionCode=' + DistributionCode + '&EnergyCode=' + EnergyCode
+url = base_url + '/historicallist?' + 'DistributionCode=' + DistributionCode + '&EnergyCode=' + EnergyCode
 list_response = requests.get(url, headers = headers)
 print(json.dumps(json.loads(list_response.text), indent = 2))
 ```
@@ -210,7 +209,7 @@ startdate = '2022-06-20'
 enddate = '2022-12-25'
 
 headers = {'accept': 'application/json', 'Authorization': "Bearer " + token}
-url = 'http://accmidasapi/api/historicaldata?id=' + rateID + '&startdate=' + startdate + '&enddate=' + enddate
+url = base_url + '/historicaldata?id=' + rateID + '&startdate=' + startdate + '&enddate=' + enddate
 list_response = requests.get(url, headers=headers)
 print(json.dumps(json.loads(list_response.text), indent = 2))
 ```
