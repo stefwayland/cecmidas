@@ -101,7 +101,7 @@ MIDAS <- R6::R6Class("MIDAS",
 
                       #' @title Get value data from MIDAS
                       #' @description
-                      #' Get list of available rates from MIDAS.
+                      #' Get real-time or current and forecast rate information.
                       #' Passing an empty RIN will return the XSD for formatting uploads.
                       #' @param rin character Single RIN including dashes to request
                       #' @param query_type character One of "realtime" or "alldata"
@@ -134,7 +134,7 @@ MIDAS <- R6::R6Class("MIDAS",
 
                       #' @title Get RIN list from MIDAS
                       #' @description
-                      #' Get real-time or current and forecast rate information.
+                      #' Get list of available rates from MIDAS.
                       #' Passing an empty RIN will return the XSD for formatting uploads.
                       #' @param signal_type integer One of 0 = ALL signal types, 1 = Tariff signals,
                       #' 2 = Greenhouse Gas signals, 3 = Flex Alert signals
@@ -155,6 +155,75 @@ MIDAS <- R6::R6Class("MIDAS",
                         )
                         res <- cli$get(path = "api/valuedata",
                                        query = list(signaltype = signal_type))
+                        res$raise_for_status()
+                        res$raise_for_ct_json()
+                        df <- jsonlite::fromJSON(res$parse("UTF-8"))
+                        df[order(df$RateID),]
+                      },
+
+                      #' @title Get historical value data from MIDAS
+                      #' @description
+                      #' Get historical rate information.
+                      #' @param rin character Single RIN including dashes to request
+                      #' @param start_date character or Date or IDate Atomic date for start of period of interest
+                      #' @param end_date character or Date or IDate Atomic date for end of period of interest
+                      #' @param response_encoding character One of "json" or "xml", "json" by default
+                      #' @param new_token logical Force requesting a new token, FALSE by default
+                      #' @param ... additional parameters passed to curl
+                      value_history = function(rin,
+                                               start_date,
+                                               end_date,
+                                               response_encoding = private$data_format,
+                                               new_token = FALSE,
+                                               ...) {
+                        checkmate::assert_character(rin, any.missing = FALSE, len = 1)
+                        checkmate::assert_date(start_date, any.missing = FALSE, len = 1)
+                        checkmate::assert_date(end_date, any.missing = FALSE, len = 1)
+                        checkmate::assert_choice(response_encoding, c("json", "xml"))
+                        self$get_token(new_token = new_token, ...)
+                        cli <- crul::HttpClient$new(
+                          self$midas_url,
+                          headers = list(Accept = paste0("application/", private$data_format),
+                                         Authorization = paste("Bearer", private$token)),
+                          opts = list(...)
+                        )
+                        res <- cli$get(path = "api/historicaldata",
+                                       query = list(id = rin,
+                                                    startdate = start_date,
+                                                    enddate = end_date))
+                        res$raise_for_status()
+                        res$raise_for_ct_json()
+                        lst <- jsonlite::fromJSON(res$parse("UTF-8"))
+                        lst$ValueInformation <- lst$ValueInformation[order(lst$ValueInformation$DateStart, lst$ValueInformation$TimeStart),]
+                        lst
+                      },
+
+                      #' @title Get RIN list from MIDAS where historical data is available
+                      #' @description
+                      #' Get list of rates with history available from MIDAS.
+                      #' @param distribution_code atomic character Two letter code from the distribution table for the distribution company
+                      #' @param energy_code atomic character Two letter code from the energy table for the energy company
+                      #' @param response_encoding character One of "json" or "xml", "json" by default
+                      #' @param new_token logical Force requesting a new token, FALSE by default
+                      #' @param ... additional parameters passed to curl
+                      history_rins = function(distribution_code,
+                                              energy_code,
+                                              response_encoding = private$data_format,
+                                              new_token = FALSE,
+                                              ...) {
+                        checkmate::assert_character(distribution_code, n.chars = 2, any.missing = FALSE, len = 1)
+                        checkmate::assert_character(energy_code, n.chars = 2, any.missing = FALSE, len = 1)
+                        checkmate::assert_choice(response_encoding, c("json", "xml"))
+                        self$get_token(new_token = new_token, ...)
+                        cli <- crul::HttpClient$new(
+                          self$midas_url,
+                          headers = list(Accept = paste0("application/", private$data_format),
+                                         Authorization = paste("Bearer", private$token)),
+                          opts = list(...)
+                        )
+                        res <- cli$get(path = "api/historicallist",
+                                       query = list(distributioncode = distribution_code,
+                                                    energycode = energy_code))
                         res$raise_for_status()
                         res$raise_for_ct_json()
                         df <- jsonlite::fromJSON(res$parse("UTF-8"))
