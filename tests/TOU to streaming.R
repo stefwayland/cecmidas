@@ -17,17 +17,17 @@ prices[Day == 0, Day := 7]
 # Set Day to 8 on holidays
 prices[holidays, Day := 8, on = .(DateStart = date)]
 
-p2 <- tou[prices, .(DateStart, TimeStart, value, Unit), on = .(DateStart <= DateStart, DateEnd >= DateStart, DayStart <= Day, DayEnd >= Day, TimeStart <= TimeStart, TimeEnd >= TimeStart)]
+p2 <- tou[prices, .(DateStart, TimeStart, Day, value, Unit), on = .(DateStart <= DateStart, DateEnd >= DateStart, DayStart <= Day, DayEnd >= Day, TimeStart <= TimeStart, TimeEnd >= TimeStart)]
 
 # Create datetime fields for conversion to UTC
 p2[, starttime := as.POSIXct(DateStart, time = TimeStart, tz = "America/Los_Angeles")]
 p2[, c("DateStart", "TimeStart") := IDateTime(with_tz(starttime, tz = "UTC"))]
-p2[, c("DateEnd", "TimeEnd") := IDateTime(with_tz(starttime + 3600, tz = "UTC"))]
+p2[, c("DateEnd", "TimeEnd") := IDateTime(with_tz(starttime + 3599, tz = "UTC"))]
 
 
 # Convert to XML for upload -------------------------------------------------
 library(xml2)
-schema <- read_xml("./tests/MIDAS upload XSD.xsd")
+# schema <- read_xml("./tests/MIDAS upload XSD.xsd")
 RIN = "USCA-TSTS-HTOU-TEST"
 rate_name = "CEC TEST24HTOU"
 rate_type = "TOU"
@@ -40,17 +40,20 @@ xml_add_child(xml_child(rate), "RateType", rate_type)
 vi <- xml_add_child(xml_child(rate), "ValueInformation")
 
 # xml_child(xml_child(rate), search = "ValueInformation")
-for(i in 1:nrow(p2)) {
+for(i in 1:12) {
   vd <- xml_add_child(vi, "ValueData")
-  xml_add_child(vd, "DateStart", p2[i, DateStart])
-  xml_add_child(vd, "DateEnd", p2[i, DateEnd])
-  xml_add_child(vd, "TimeStart", p2[i, TimeStart])
-  xml_add_child(vd, "TimeEnd", p2[i, TimeEnd])
+  xml_add_child(vd, "DateStart", as.character(p2[i, DateStart]))
+  xml_add_child(vd, "DateEnd", as.character(p2[i, DateEnd]))
+  xml_add_child(vd, "TimeStart", as.character(p2[i, TimeStart]))
+  xml_add_child(vd, "TimeEnd", as.character(p2[i, TimeEnd]))
+  xml_add_child(vd, "DayStart", p2[i, Day])
+  xml_add_child(vd, "DayEnd", p2[i, Day])
+  xml_add_child(vd, "ValueName", "price")
   xml_add_child(vd, "Value", p2[i, value])
   xml_add_child(vd, "Unit", p2[i, Unit])
   print(i)
 }
 
 xml_validate(rate, schema)
-write_xml(rate, file = "./test/Streaming_Test.xml", options =c("format"))
+write_xml(rate, file = "tests/Streaming_Test.xml", options =c("format"))
 
