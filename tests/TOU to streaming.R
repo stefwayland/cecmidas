@@ -6,10 +6,12 @@ library(lubridate)
 library(data.table)
 
 holidays <- fread("./tests/Holiday_test.csv", colClasses = c("character", "IDate"))
-tou <- fread("./tests/TOU_test.csv", colClasses = c(TimeStart = "ITime", TimeEnd = "ITime"))
+tou <- fread("./tests/TOU_test.csv", colClasses = c(DateStart = "IDate", DateEnd = "IDate",
+                                                    TimeStart = "ITime", TimeEnd = "ITime"))
 
-# Create table of prices for all hours of the year ----------------------
-prices <- CJ(DateStart = seq(as.IDate("2023-01-01"), as.IDate("2023-12-31"), by = "day"),
+# Create table of prices for all hours of the year for each rate -------------
+prices <- CJ(RIN = unique(tou$RIN),
+             DateStart = seq(as.IDate("2023-01-01"), as.IDate("2023-12-31"), by = "day"),
              TimeStart = seq(as.ITime("00:00"), as.ITime("23:00"), by = 3600))
 # Set Day to equal Monday = 1 through Sunday = 7
 prices[, Day := wday(DateStart) - 1]
@@ -17,7 +19,7 @@ prices[Day == 0, Day := 7]
 # Set Day to 8 on holidays
 prices[holidays, Day := 8, on = .(DateStart = date)]
 
-p2 <- tou[prices, .(DateStart, TimeStart, value, Unit), on = .(DateStart <= DateStart, DateEnd >= DateStart, DayStart <= Day, DayEnd >= Day, TimeStart <= TimeStart, TimeEnd >= TimeStart)]
+p2 <- tou[prices, .(RIN, DateStart, TimeStart, Day, Value, Unit), on = .(RIN = RIN, DateStart <= DateStart, DateEnd >= DateStart, DayStart <= Day, DayEnd >= Day, TimeStart <= TimeStart, TimeEnd >= TimeStart)]
 
 # Create datetime fields for conversion to UTC
 p2[, starttime := as.POSIXct(DateStart, time = TimeStart, tz = "America/Los_Angeles")]
@@ -46,7 +48,7 @@ for(i in 1:nrow(p2)) {
   xml_add_child(vd, "DateEnd", p2[i, DateEnd])
   xml_add_child(vd, "TimeStart", p2[i, TimeStart])
   xml_add_child(vd, "TimeEnd", p2[i, TimeEnd])
-  xml_add_child(vd, "Value", p2[i, value])
+  xml_add_child(vd, "Value", p2[i, Value])
   xml_add_child(vd, "Unit", p2[i, Unit])
   print(i)
 }

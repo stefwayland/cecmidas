@@ -135,7 +135,6 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @title Get RIN list from MIDAS
                       #' @description
                       #' Get list of available rates from MIDAS.
-                      #' Passing an empty RIN will return the XSD for formatting uploads.
                       #' @param signal_type integer One of 0 = ALL signal types, 1 = Tariff signals,
                       #' 2 = Greenhouse Gas signals, 3 = Flex Alert signals
                       #' @param new_token logical Force requesting a new token, FALSE by default
