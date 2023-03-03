@@ -6,7 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+use_condaenv("base")
 ```
 
 # MIDAS Demo Code
@@ -17,8 +18,8 @@ import requests
 import json
 import base64
 
-base_url = "https://midasapi.energy.ca.gov/api"
-# base_url = "http://accmidasapi/api"
+# base_url = "https://midasapi.energy.ca.gov/api"
+base_url = "http://accmidasapi/api"
 
 ##Encode registration values as base64
 
@@ -70,7 +71,7 @@ credentials_encodedBytes = base64.b64encode(credentials.encode("utf-8"))
 headers = {b'Authorization': b'BASIC ' + credentials_encodedBytes}
 url = base_url + '/token'
 
-response = requests.get(url,headers = headers)
+response = requests.get(url, headers = headers)
 print(response.text)
 
 token = response.headers['Token']
@@ -94,18 +95,6 @@ list_response = requests.get(url, headers = headers)
 print(json.dumps(json.loads(list_response.text), indent = 2))
 ```
 
-## Get Values
-
-```{python}
-queryType = 'alldata'
-rateID = 'USCA-CFCF-SHDP-0000'
-headers = {'accept': 'application/json', 'Authorization': "Bearer " + token}
-url = base_url + '/valuedata?id=' + rateID + '&querytype=' + queryType
-pricing_response = requests.get(url, headers = headers)
-print(json.dumps(json.loads(pricing_response.text), indent = 2))
-print(pricing_response)
-```
-
 ## Get XML Schema
 
 ```{python}
@@ -120,6 +109,19 @@ ET.indent(element)
 print(ET.tostring(element, encoding='unicode'))
 ```
 
+## Get Values
+
+```{python}
+queryType = 'alldata'
+# rateID = 'USCA-TSTS-HTOU-TEST'
+rateID = 'USCA-TSTS-HTOU-0000'
+headers = {'accept': 'application/json', 'Authorization': "Bearer " + token}
+url = base_url + '/valuedata?id=' + rateID + '&querytype=' + queryType
+pricing_response = requests.get(url, headers = headers)
+print(json.dumps(json.loads(pricing_response.text), indent = 2))
+print(pricing_response)
+```
+
 ## Upload Rates
 
 ```{python}
@@ -128,10 +130,11 @@ import sys
 
 # some debugging help
 import http.client
-# logging stuffs
+# logging stuff
 http.client.HTTPConnection.debuglevel = 1
 
 # File on the local filesystem that is correctly formatted against the XML schema definition (XSD)
+# priceFileName = 'Streaming_Test.xml'
 priceFileName = 'MIDAS_Test_Rate_24TOU.xml'
 
 headers = {'accept': 'application/json', 'Content-Type': 'text/xml', 'Authorization': "Bearer " + token}
@@ -149,7 +152,7 @@ print(pricing_response)
 ## Get Lookup Table Data
 
 ```{python}
-LookupTable = 'Ratetype'
+LookupTable = 'Location'
 
 headers = {'accept': 'application/json', 'Authorization': "Bearer " + token}
 url = base_url + '/valuedata?' + 'LookupTable=' + LookupTable
