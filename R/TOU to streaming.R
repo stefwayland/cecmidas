@@ -1,10 +1,5 @@
 # TOU to XML converter
 
-holiday_file <- "./tests/Holiday_test.csv"
-tou_file <- "./tests/TOU_test.csv"
-start_date <- "2022-01-01"
-end_date <- "2023-12-31"
-
 TOU_to_streaming <- function(holiday_file, tou_file, start_date,
                              end_date, time_zone = "America/Los_Angeles") {
   requireNamespace("lubridate")
@@ -54,39 +49,55 @@ TOU_to_streaming <- function(holiday_file, tou_file, start_date,
   p2
 }
 
-p2 <- TOU_to_streaming(holiday_file, tou_file, start_date, end_date)
-
 
 # Convert to XML for upload -------------------------------------------------
-library(xml2)
-# schema <- read_xml("./tests/MIDAS upload XSD.xsd")
-RIN = "USCA-TSTS-HTOU-TEST"
-rate_name = "CEC TEST24HTOU"
-rate_type = "TOU"
 
-rate = xml_new_root("DemandData")
-xml_add_child(rate, "RateInformation")
-xml_add_child(xml_child(rate), "RateID", RIN)
-xml_add_child(xml_child(rate), "RateName", rate_name)
-xml_add_child(xml_child(rate), "RateType", rate_type)
-vi <- xml_add_child(xml_child(rate), "ValueInformation")
-
-# xml_child(xml_child(rate), search = "ValueInformation")
-for(i in 1:12) {
-  vd <- xml_add_child(vi, "ValueData")
-
-  xml_add_child(vd, "DateStart", as.character(p2[i, DateStart]))
-  xml_add_child(vd, "DateEnd", as.character(p2[i, DateEnd]))
-  xml_add_child(vd, "TimeStart", as.character(p2[i, TimeStart]))
-  xml_add_child(vd, "TimeEnd", as.character(p2[i, TimeEnd]))
-  xml_add_child(vd, "DayStart", p2[i, DayType])
-  xml_add_child(vd, "DayEnd", p2[i, DayType])
-  xml_add_child(vd, "ValueName", "price")
-  xml_add_child(vd, "Value", p2[i, Value])
-  xml_add_child(vd, "Unit", p2[i, Unit])
-  print(i)
+xml_non_na <- function(value, name) {
+  if(!is.na(value)) {
+    paste0("<", name, ">", value, "</", name, ">")
+  }
 }
 
-xml_validate(rate, schema)
-write_xml(rate, file = "tests/Streaming_Test.xml", options =c("format"))
+rate_to_xml <- function(DT, file_name) {
+  rateinfo <- unique(DT[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
+                            RatePlan_Url, RateType, Sector, API_Url)])
+  DemandData <- vector(mode = "list", length = nrow(rateinfo))
+  for(rt in 1:nrow(rateinfo)) {
+    RateInformation <- paste0(
+      xml_non_na(rateinfo[rt, RIN], "RIN"),
+      xml_non_na(rateinfo[rt, AltRateName1], "AltRateName1"),
+      xml_non_na(rateinfo[rt, AltRateName2], "AltRateName2"),
+      xml_non_na(rateinfo[rt, SignupCloseDate], "SignupCloseDate"),
+      xml_non_na(rateinfo[rt, RateName], "RateName"),
+      xml_non_na(rateinfo[rt, RatePlan_Url], "RatePlan_Url"),
+      xml_non_na(rateinfo[rt, RateType], "RateType"),
+      xml_non_na(rateinfo[rt, Sector], "Sector"),
+      xml_non_na(rateinfo[rt, API_Url], "API_Url")
+    )
+    ratevalue <- DT[RIN == rateinfo[rt, RIN]]
+    ValueInformation <- vector(mode = "list", length = nrow(ratevalue))
+    for (vd in 1:length(ValueInformation)) {
+      ValueData <- paste("<ValueData>",
+                         paste0("<DateStart>", ratevalue[vd, DateStart], "</DateStart>"),
+                         paste0("<DateEnd>", ratevalue[vd, DateEnd], "</DateEnd>"),
+                         paste0("<TimeStart>", ratevalue[vd, TimeStart], "</TimeStart>"),
+                         paste0("<TimeEnd>", ratevalue[vd, TimeEnd], "</TimeEnd>"),
+                         paste0("<DayStart>", ratevalue[vd, DayType], "</DayStart>"),
+                         paste0("<DayEnd>", ratevalue[vd, DayType], "</DayEnd>"),
+                         paste0("<ValueName>", ratevalue[vd, ValueName], "</ValueName>"),
+                         paste0("<Value>", ratevalue[vd, Value], "</Value>"),
+                         paste0("<Unit>", ratevalue[vd, Unit], "</Unit>"),
+                         "</ValueData>",
+                         sep = "\n"
+      )
+      ValueInformation[[vd]] <- ValueData
+    }
+    ValueInformation <- paste("<ValueInformation>", paste(ValueInformation, collapse = "\n"), "</ValueInformation>", sep = "\n")
+    RateInformation <- paste("<RateInformation>", RateInformation, ValueInformation, "</RateInformation>", sep = "\n")
+    DemandData[[rt]] <- RateInformation
+  }
+  DemandData <- paste("<DemandData>", paste(DemandData, collapse = "\n"), "</DemandData>", sep = "\n")
+
+  writeChar(DemandData, file_name)
+}
 
