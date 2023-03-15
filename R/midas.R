@@ -231,7 +231,9 @@ MIDAS <- R6::R6Class("MIDAS",
 
                       #' @title Get lookup table data from MIDAS
                       #' @description
-                      #' Get lookup table information. Possible lookup tables are currently Country, Daytype, Distribution, Enduse, Energy, Location, Ratetype, Sector, State, and TimeZone.
+                      #' Get lookup table information. Possible lookup tables are currently
+                      #' Country, Daytype, Distribution, Enduse, Energy,
+                      #' Location, Ratetype, Sector, State, and TimeZone.
                       #' @param table_name atomic character lookup table name.
                       #' @param new_token logical Force requesting a new token, FALSE by default
                       #' @param ... additional parameters passed to curl

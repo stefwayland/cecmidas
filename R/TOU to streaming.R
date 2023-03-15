@@ -26,8 +26,9 @@ TOU_to_streaming <- function(holiday_file, tou_file, start_date,
                                              "Value", "Unit"))
 
   # Create table of prices for all hours of the year for each rate -----------
+  ## TODO: Consider adding Unit to unique query in case of time-varying demand charges or inclusion of other units in TOU rates
   prices <- CJ(RIN = unique(tou$RIN),
-               DateStart = seq(as.IDate("2023-01-01"), as.IDate("2023-12-31"), by = "day"),
+               DateStart = seq(as.IDate(start_date), as.IDate(end_date), by = "day"),
                TimeStart = seq(as.ITime("00:00"), as.ITime("23:00"), by = 3600))
   # Set Day to equal Monday = 1 through Sunday = 7
   prices[, DayType := wday(DateStart) - 1]
@@ -45,6 +46,8 @@ TOU_to_streaming <- function(holiday_file, tou_file, start_date,
   # Create datetime fields and convert to UTC
   p2[, starttime := as.POSIXct(DateStart, time = TimeStart, tz = "America/Los_Angeles")]
   p2[, c("DateStart", "TimeStart") := IDateTime(lubridate::with_tz(starttime, tz = "UTC"))]
+  # Drop hours due to DST changes
+  # p2 <- unique(p2, by = c("RIN", "Unit", "DateStart", "TimeStart"))
   p2[, c("DateEnd", "TimeEnd") := IDateTime(lubridate::with_tz(starttime + 3599, tz = "UTC"))]
   p2
 }
@@ -64,7 +67,7 @@ rate_to_xml <- function(DT, file_name) {
   DemandData <- vector(mode = "list", length = nrow(rateinfo))
   for(rt in 1:nrow(rateinfo)) {
     RateInformation <- paste0(
-      xml_non_na(rateinfo[rt, RIN], "RIN"),
+      xml_non_na(rateinfo[rt, RIN], "RateID"),
       xml_non_na(rateinfo[rt, AltRateName1], "AltRateName1"),
       xml_non_na(rateinfo[rt, AltRateName2], "AltRateName2"),
       xml_non_na(rateinfo[rt, SignupCloseDate], "SignupCloseDate"),
@@ -96,8 +99,9 @@ rate_to_xml <- function(DT, file_name) {
     RateInformation <- paste("<RateInformation>", RateInformation, ValueInformation, "</RateInformation>", sep = "\n")
     DemandData[[rt]] <- RateInformation
   }
-  DemandData <- paste("<DemandData>", paste(DemandData, collapse = "\n"), "</DemandData>", sep = "\n")
+  DemandData <- paste("<?xml version='1.0' encoding='UTF-8'?>",
+                      "<DemandData>", paste(DemandData, collapse = "\n"), "</DemandData>", "\n", sep = "\n")
 
-  writeChar(DemandData, file_name)
+  writeChar(DemandData, file_name, eos = NULL)
 }
 
