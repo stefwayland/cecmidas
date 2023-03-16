@@ -241,7 +241,6 @@ MIDAS <- R6::R6Class("MIDAS",
                         checkmate::check_choice(table_name, c())
                         self$get_token(new_token = new_token, ...)
                         if (is.na(table_name)) stop("Must provide lookup table name.")
-                        if (!response_encoding %in% c("json", "xml")) stop("response_encoding must be either 'json' or 'xml'")
                         cli <- crul::HttpClient$new(
                           self$midas_url,
                           headers = list(Accept = paste0("application/", private$data_format),
