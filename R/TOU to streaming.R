@@ -1,5 +1,34 @@
-# TOU to XML converter
+# cecmidas R package
+# Software that connects to the CEC MIDAS Rate API
+# Copyright (C) 2023 Stefanie Wayland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#
+#' TOU to XML converter
+#'
+#' @description
+#' Function to import CSV files that contain TOU rate information and convert
+#' the TOU structure to a streaming structure.
+#'
+#' @param holiday_file atomic character with the path to a CSV file with holiday dates and information
+#' @param tou_file atomic character with the path to a CSV file with TOU rate information
+#' @param start_date atomic character or Date for the beginning of the period the streaming rate should cover
+#' @param end_date atomic character or Date for the end of the period the streaming rate should cover
+#' @param time_zone atomic character the time zone where the rate is offered. This should be one of the time zones listed in OlsonNames()
+#'
+#' @export
 TOU_to_streaming <- function(holiday_file, tou_file, start_date,
                              end_date, time_zone = "America/Los_Angeles") {
   requireNamespace("lubridate")
@@ -61,6 +90,16 @@ xml_non_na <- function(value, name) {
   }
 }
 
+#' Convert streaming rate to XML for upload
+#'
+#' @description
+#' Function to convert the data.table output of the TOU_to_streaming function
+#' into XML for upload to MIDAS.
+#'
+#' @param DT data.table created by the TOU_to_streaming function
+#' @param file_name atomic character with the path where you want to save the XML
+#'
+#' @export
 rate_to_xml <- function(DT, file_name) {
   rateinfo <- unique(DT[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
                             RatePlan_Url, RateType, Sector, API_Url)])

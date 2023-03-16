@@ -1,5 +1,5 @@
 Package: cecmidas
-Title: Connect to the California Energy Commission MIDAS Rate Database API
+Title: Interact with the California Energy Commission MIDAS Rate Database API
 Version: 0.0.0.9000
 Authors@R: 
     person(given = "Stefanie",
@@ -13,7 +13,7 @@ Description: This package provides functions to easily retreive data from the
     MIDAS is a database and API providing real-time prices for time-varying retail electricity
     rates from large utilities and energy providers in California. It also provides 
     real-time carbon emissions from WattTime's Self-Generation Incentive Program (SGIP) API.
-License: MIT + file LICENSE
+License: AGPL-3.0-or-later + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
