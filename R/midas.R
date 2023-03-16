@@ -25,7 +25,7 @@
 MIDAS <- R6::R6Class("MIDAS",
                     public = list(
 
-                      #' @field base URL for SGIP API
+                      #' @field midas_url base URL for SGIP API
                       midas_url = "https://midasapi.energy.ca.gov",
 
                       #' @description
@@ -33,6 +33,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @param username atomic character Username for login
                       #' @param password atomic character Password for login
                       #' @param email atomic character Email address for registration. Required if registering a new account
+                      #' @param fullname atomic character Full name of user registering for MIDAS. Required if registering a new account
                       #' @param organization atomic character organization name for registration. Not required. Only used when registering a new account.
                       #' @return a new `MIDAS` connection object.
                       initialize = function(username,
@@ -59,16 +60,6 @@ MIDAS <- R6::R6Class("MIDAS",
                         print(paste("username:", private$username))
                         print(paste("token:", private$token))
                         print(paste("token age:", format(Sys.time() - private$token_dt, units = "secs"), "seconds"))
-                        print(paste("data format:", private$data_format))
-                      },
-
-                      #' @title Set preferred response data format
-                      #' @description Set the preferred data format for responses from value requests. The default for cecmidas is JSON, but the MIDAS API will return either json or xml.
-                      #' @param format atomic character One of "json" or "xml"
-                      set_data_format = function(format) {
-                        checkmate::assert_choice(format, c("json", "xml"))
-                        private$data_format <- format
-                        invisible(self)
                       },
 
                       #' @title Register a username and password
@@ -126,12 +117,10 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @param ... additional parameters passed to curl
                       value = function(rin,
                                        query_type = "realtime",
-                                       response_encoding = private$data_format,
                                        new_token = FALSE,
                                        ...) {
                         checkmate::assert_character(rin, any.missing = FALSE, len = 1)
                         checkmate::assert_choice(query_type, c("realtime", "alldata"))
-                        checkmate::assert_choice(response_encoding, c("json", "xml"))
                         self$get_token(new_token = new_token, ...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
@@ -157,11 +146,9 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @param new_token logical Force requesting a new token, FALSE by default
                       #' @param ... additional parameters passed to curl
                       rins = function(signal_type = 1,
-                                       response_encoding = private$data_format,
                                        new_token = FALSE,
                                        ...) {
                         checkmate::assert_choice(signal_type, 0:3)
-                        checkmate::assert_choice(response_encoding, c("json", "xml"))
                         self$get_token(new_token = new_token, ...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
@@ -183,19 +170,16 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @param rin character Single RIN including dashes to request
                       #' @param start_date character or Date or IDate Atomic date for start of period of interest
                       #' @param end_date character or Date or IDate Atomic date for end of period of interest
-                      #' @param response_encoding character One of "json" or "xml", "json" by default
                       #' @param new_token logical Force requesting a new token, FALSE by default
                       #' @param ... additional parameters passed to curl
                       value_history = function(rin,
                                                start_date,
                                                end_date,
-                                               response_encoding = private$data_format,
                                                new_token = FALSE,
                                                ...) {
                         checkmate::assert_character(rin, any.missing = FALSE, len = 1)
                         checkmate::assert_date(start_date, any.missing = FALSE, len = 1)
                         checkmate::assert_date(end_date, any.missing = FALSE, len = 1)
-                        checkmate::assert_choice(response_encoding, c("json", "xml"))
                         self$get_token(new_token = new_token, ...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
@@ -219,17 +203,14 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' Get list of rates with history available from MIDAS.
                       #' @param distribution_code atomic character Two letter code from the distribution table for the distribution company
                       #' @param energy_code atomic character Two letter code from the energy table for the energy company
-                      #' @param response_encoding character One of "json" or "xml", "json" by default
                       #' @param new_token logical Force requesting a new token, FALSE by default
                       #' @param ... additional parameters passed to curl
                       history_rins = function(distribution_code,
                                               energy_code,
-                                              response_encoding = private$data_format,
                                               new_token = FALSE,
                                               ...) {
                         checkmate::assert_character(distribution_code, n.chars = 2, any.missing = FALSE, len = 1)
                         checkmate::assert_character(energy_code, n.chars = 2, any.missing = FALSE, len = 1)
-                        checkmate::assert_choice(response_encoding, c("json", "xml"))
                         self$get_token(new_token = new_token, ...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
@@ -255,7 +236,6 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @param new_token logical Force requesting a new token, FALSE by default
                       #' @param ... additional parameters passed to curl
                       lookups = function(table_name,
-                                         response_encoding = private$data_format,
                                          new_token = FALSE,
                                          ...) {
                         checkmate::check_choice(table_name, c())
@@ -271,22 +251,16 @@ MIDAS <- R6::R6Class("MIDAS",
                         res <- cli$get(path = "api/valuedata",
                                        query = list(LookupTable = table_name))
                         res$raise_for_status()
-                        if (response_encoding == "xml") {
-                          #TODO: Add xml support
-                        } else {
-                          res$raise_for_ct_json()
-                          return(jsonlite::fromJSON(res$parse("UTF-8")))
-                        }
+                        res$raise_for_ct_json()
+                        return(jsonlite::fromJSON(res$parse("UTF-8")))
                       },
 
                       #' @title Get holiday table data from MIDAS
                       #' @description
                       #' Get holiday table information.
-                      #' @param response_encoding set to MIDAS$data_format, "json" by default.
                       #' @param new_token logical Force requesting a new token, FALSE by default
                       #' @param ... additional parameters passed to curl
-                      holiday = function(response_encoding = private$data_format,
-                                         new_token = FALSE,
+                      holiday = function(new_token = FALSE,
                                          ...) {
                         checkmate::assert_choice(response_encoding, c("json", "xml"))
                         self$get_token(new_token = new_token, ...)
@@ -298,12 +272,8 @@ MIDAS <- R6::R6Class("MIDAS",
                         )
                         res <- cli$get(path = "api/holiday")
                         res$raise_for_status()
-                        if (response_encoding == "xml") {
-                          #TODO: Add xml support
-                        } else {
-                          res$raise_for_ct_json()
-                          return(jsonlite::fromJSON(res$parse("UTF-8")))
-                        }
+                        res$raise_for_ct_json()
+                        return(jsonlite::fromJSON(res$parse("UTF-8")))
                       },
 
                       #' @title Upload a new rate or rate change
@@ -311,6 +281,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' generally only granted to load serving entities, with rare exceptions.
                       #' @param filename path to file with XML to upload
                       #' @param verbose logical set to TRUE for copious printed output
+                      #' @param ... additional parameters passed to curl
                       upload_rate = function(filename, verbose = FALSE, ...) {
                         checkmate::assert_file(filename, access = "r")
                         checkmate::assert_logical(verbose, len = 1, any.missing = FALSE)
