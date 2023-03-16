@@ -5,7 +5,7 @@ Authors@R:
     person(given = "Stefanie",
            family = "Wayland",
            role = c("aut", "cre"),
-           email = "",
+           email = "midas@energy.ca.gov",
            comment = c(ORCID = "0000-0003-2733-5719"))
 Description: This package provides functions to easily retreive data from the 
     California Energy Commission's (CEC) Market Informed Demand Automation Server (MIDAS) 
@@ -13,21 +13,21 @@ Description: This package provides functions to easily retreive data from the
     MIDAS is a database and API providing real-time prices for time-varying retail electricity
     rates from large utilities and energy providers in California. It also provides 
     real-time carbon emissions from WattTime's Self-Generation Incentive Program (SGIP) API.
-License: AGPL-3.0-or-later + file LICENSE
+License: AGPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Suggests: 
-    data.table,
-    lubridate,
     testthat (>= 3.0.0),
     vcr (>= 0.6.0)
 Config/testthat/edition: 3
 Imports: 
     checkmate,
     crul,
+    data.table,
     jsonlite,
+    lubridate,
     R6
 URL: https://github.com/stefwayland/cecmidas
 BugReports: https://github.com/stefwayland/cecmidas/issues
