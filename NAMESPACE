@@ -3,3 +3,5 @@
 export(MIDAS)
 export(TOU_to_streaming)
 export(rate_to_xml)
+import(data.table)
+importFrom(lubridate,with_tz)

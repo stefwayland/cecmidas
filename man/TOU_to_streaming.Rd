@@ -2,7 +2,7 @@
 % Please edit documentation in R/TOU_to_streaming.R
 \name{TOU_to_streaming}
 \alias{TOU_to_streaming}
-\title{TOU to XML converter}
+\title{TOU to streaming rate converter}
 \usage{
 TOU_to_streaming(
   holiday_file,

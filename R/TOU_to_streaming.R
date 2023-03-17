@@ -16,7 +16,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #
-#' TOU to XML converter
+# TOU to XML converter
+#' TOU to streaming rate converter
 #'
 #' @description
 #' Function to import CSV files that contain TOU rate information and convert
@@ -28,11 +29,23 @@
 #' @param end_date atomic character or Date for the end of the period the streaming rate should cover
 #' @param time_zone atomic character the time zone where the rate is offered. This should be one of the time zones listed in OlsonNames()
 #'
+#' @importFrom lubridate with_tz
+#' @import data.table
 #' @export
 TOU_to_streaming <- function(holiday_file, tou_file, start_date,
                              end_date, time_zone = "America/Los_Angeles") {
-  requireNamespace("lubridate")
-  require(data.table)
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop(
+      "Package \"data.table\" must be installed to use this function.",
+      call. = FALSE
+    )
+  }
+  if (!requireNamespace("lubridate", quietly = TRUE)) {
+    stop(
+      "Package \"lubridate\" must be installed to use this function.",
+      call. = FALSE
+    )
+  }
 
   # check function arguments -------------------------------------------------
   checkmate::assert_file_exists(holiday_file, extension = "csv")
@@ -99,8 +112,15 @@ xml_non_na <- function(value, name) {
 #' @param DT data.table created by the TOU_to_streaming function
 #' @param file_name atomic character with the path where you want to save the XML
 #'
+#' @import data.table
 #' @export
 rate_to_xml <- function(DT, file_name) {
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop(
+      "Package \"data.table\" must be installed to use this function.",
+      call. = FALSE
+    )
+  }
   rateinfo <- unique(DT[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
                             RatePlan_Url, RateType, Sector, API_Url)])
   DemandData <- vector(mode = "list", length = nrow(rateinfo))
