@@ -26,7 +26,7 @@ MIDAS <- R6::R6Class("MIDAS",
                     public = list(
 
                       #' @field midas_url base URL for SGIP API
-                      midas_url = "https://midasapi.energy.ca.gov",
+                      midas_url = "http://midasapi.energy.ca.gov",
 
                       #' @description
                       #' Create a new MIDAS connection
@@ -60,6 +60,8 @@ MIDAS <- R6::R6Class("MIDAS",
                         print(paste("username:", private$username))
                         print(paste("token:", private$token))
                         print(paste("token age:", format(Sys.time() - private$token_dt, units = "secs"), "seconds"))
+                        print(paste("download format:", private$data_format))
+                        print(paste("upload format:", private$upload_format))
                       },
 
                       #' @title Register a username and password
@@ -261,7 +263,6 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @param ... additional parameters passed to curl
                       holiday = function(new_token = FALSE,
                                          ...) {
-                        checkmate::assert_choice(response_encoding, c("json", "xml"))
                         self$get_token(new_token = new_token, ...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
@@ -290,7 +291,7 @@ MIDAS <- R6::R6Class("MIDAS",
                         cli <- crul::HttpClient$new(
                           self$midas_url,
                           headers = list(Accept = paste0("application/", private$data_format),
-                                         `Content-Type` = "text/xml",
+                                         `Content-Type` = paste0("text/", private$upload_format),
                                          Authorization = paste("Bearer", private$token)),
                           opts = list(...)
                         )
@@ -321,7 +322,7 @@ MIDAS <- R6::R6Class("MIDAS",
                         cli <- crul::HttpClient$new(
                           self$midas_url,
                           headers = list(Accept = paste0("application/", private$data_format),
-                                         `Content-Type` = "text/xml",
+                                         `Content-Type` = paste0("text/", private$upload_format),
                                          Authorization = paste("Bearer", private$token)),
                           opts = list(...)
                         )
@@ -347,6 +348,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       organization = NA,
                       token = NA,
                       token_dt = NA,
-                      data_format = "json"
+                      data_format = "json",
+                      upload_format = "json"
                     )
 )
