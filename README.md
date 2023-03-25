@@ -1,0 +1,91 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# cecmidas
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+cecmidas is an R package designed for interaction and uploading to the
+California Energy Commission’s (CEC) Market Informed Demand Automation
+Server (MIDAS). MIDAS provides access to real-time and historical
+electricity rates for the largest electricial utilities in California.
+Documentation for MIDAS is available at:
+[MIDAS-Documentation](https://gitlab.com/CEC-MIDAS/midas-documentation).
+Reading the MIDAS documentation is highly recommended as it makes using
+this package much easier.
+
+cecmidas can both GET and POST to MIDAS, but most users will only have
+GET access. POST access is limited to the California utilities that
+maintain their rates in MIDAS. The package includes some helper
+functions for those utilities to help prep and upload their rate data.
+
+This package is under active development. One of the next priorities is
+to add a way for handling secrets so that you don’t expose passwords in
+your code. If you have issues or feature requests, please use [GitHub
+issues](https://github.com/stefwayland/cecmidas/issues) to provide
+feedback.
+
+## Installation
+
+<!-- You can install the released version of cecmidas from [CRAN](https://CRAN.R-project.org) with: -->
+<!-- ``` r -->
+<!-- install.packages("cecmidas") -->
+<!-- ``` -->
+
+You can install the development version from
+[GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("stefwayland/cecmidas")
+```
+
+## Getting Started
+
+Using MIDAS requires that you first register with the server. You only
+need to do this once. MIDAS will send a conifrmation email to the
+address you give it. Click through the confirmation link and you will be
+good to go! (Unless you are a utility in California who needs upload
+access, then see the MIDAS documentation for next steps.)
+
+cecmidas uses [R6](https://r6.r-lib.org/) objects, so the code here
+looks a little different than standard R code. The first step to using
+cecmidas is to create a `midas` object (you can name it whatever you
+want) which holds your login information and connection token. This
+makes it easier to use once you get started because you don’t have to
+provide that information to every function or store it in an
+environment. To do this yourself, just replace the username etc., in the
+example with your own.
+
+``` r
+library(cecmidas)
+# Create a MIDAS object
+midas <- MIDAS$new(username = "alovelace",
+                   password = "Differenceengineftw!",
+                   email = "alovelace@example.com",
+                   fullname = "Ada Lovelace",
+                   organization = "First Computing Inc")
+# Register
+midas$register()
+```
+
+Once you’ve registration process the fist time, you will not have to use
+the `register()` function again. Just create a midas object and get on
+with it. For example, to get the list of the rates available and then
+look up the current price for one of those rates:
+
+``` r
+library(cecmidas)
+# Create a MIDAS object (only do this one per session)
+midas <- MIDAS$new(username = "alovelace",
+                   password = "Differenceengineftw!")
+
+# Get list of Rate Identification Numbers (RINs) and put them in a data.frame
+rins <- midas$rins()
+rins
+
+# Get real-time data for the rate with RIN "USCA-TSTS-TTOU-TEST"
+prices <- midas$value(rin = "USCA-TSTS-TTOU-TEST", query_type = "realtime")
+prices$ValueInformation
+```
