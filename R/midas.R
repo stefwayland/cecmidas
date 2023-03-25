@@ -43,8 +43,8 @@ MIDAS <- R6::R6Class("MIDAS",
                                             organization = NA_character_) {
                         checkmate::check_character(username, len = 1, any.missing = FALSE)
                         checkmate::check_character(password, len = 1, any.missing = FALSE)
-                        checkmate::check_character(fullname, len = 1, any.missing = FALSE)
-                        checkmate::check_character(email, len = 1, any.missing = FALSE)
+                        checkmate::check_character(fullname, len = 1)
+                        checkmate::check_character(email, len = 1)
                         checkmate::check_character(organization, len = 1)
                         private$username <- username
                         private$password <- password
@@ -65,9 +65,13 @@ MIDAS <- R6::R6Class("MIDAS",
                       },
 
                       #' @title Register a username and password
-                      #' @description This function registers a username and password. The CEC requires that you be registered and respond to an authentication email before obtaining an access token. You should only have to do this once.
+                      #' @description This function registers a username and password.
+                      #' The CEC requires that you be registered and respond to an authentication email
+                      #' before obtaining an access token. You should only have to do this once.
                       #' @param ... Additional parameters passed to curl
                       register = function(...) {
+                        checkmate::check_character(private$fullname, len = 1, any.missing = FALSE)
+                        checkmate::check_character(private$email, len = 1, any.missing = FALSE)
                         if (is.na(private$organization)) {
                           qy <- list(fullname = jsonlite::base64_enc(private$fullname),
                                      username = jsonlite::base64_enc(private$username),
@@ -136,8 +140,14 @@ MIDAS <- R6::R6Class("MIDAS",
                         res$raise_for_status()
                         res$raise_for_ct_json()
                         lst <- jsonlite::fromJSON(res$parse("UTF-8"))
-                        lst$ValueInformation <- lst$ValueInformation[order(lst$ValueInformation$DateStart, lst$ValueInformation$TimeStart),]
-                        lst
+                        if (!is.null(lst$ValueInformation)) {
+                          lst$ValueInformation <- lst$ValueInformation[order(lst$ValueInformation$DateStart, lst$ValueInformation$TimeStart), ]
+                          return(lst)
+                        } else if (query_type == "realtime") {
+                          warning("No real-time data provided by MIDAS. The rate in MIDAS may be outdated.\nTry requesting 'alldata' to find out what data is available for the rate.")
+                        } else {
+                          stop("No value data returned by MIDAS")
+                        }
                       },
 
                       #' @title Get RIN list from MIDAS
@@ -163,7 +173,7 @@ MIDAS <- R6::R6Class("MIDAS",
                         res$raise_for_status()
                         res$raise_for_ct_json()
                         df <- jsonlite::fromJSON(res$parse("UTF-8"))
-                        df[order(df$RateID),]
+                        df[order(df$RateID), ]
                       },
 
                       #' @title Get historical value data from MIDAS
@@ -196,7 +206,7 @@ MIDAS <- R6::R6Class("MIDAS",
                         res$raise_for_status()
                         res$raise_for_ct_json()
                         lst <- jsonlite::fromJSON(res$parse("UTF-8"))
-                        lst$ValueInformation <- lst$ValueInformation[order(lst$ValueInformation$DateStart, lst$ValueInformation$TimeStart),]
+                        lst$ValueInformation <- lst$ValueInformation[order(lst$ValueInformation$DateStart, lst$ValueInformation$TimeStart), ]
                         lst
                       },
 
@@ -226,7 +236,7 @@ MIDAS <- R6::R6Class("MIDAS",
                         res$raise_for_status()
                         res$raise_for_ct_json()
                         df <- jsonlite::fromJSON(res$parse("UTF-8"))
-                        df[order(df$RateID),]
+                        df[order(df$RateID), ]
                       },
 
                       #' @title Get lookup table data from MIDAS
@@ -280,28 +290,30 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @description Requires special CEC approval. Upload access is
                       #' generally only granted to load serving entities, with rare exceptions.
                       #' @param filename path to file with XML to upload
+                      #' @param upload_format character One of "json" or "xml"
                       #' @param verbose logical set to TRUE for copious printed output
                       #' @param ... additional parameters passed to curl
-                      upload_rate = function(filename, verbose = FALSE, ...) {
+                      upload_rate = function(filename, upload_format = "json", verbose = FALSE, ...) {
                         checkmate::assert_file(filename, access = "r")
+                        checkmate::assert_choice(upload_format, choices = c("json", "xml"))
                         checkmate::assert_logical(verbose, len = 1, any.missing = FALSE)
                         xml_data <- paste(readLines(filename, n = -1), collapse = "\n")
-                        if(verbose) print(xml_data)
+                        if (verbose) print(xml_data)
                         self$get_token(...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
                           headers = list(Accept = paste0("application/", private$data_format),
-                                         `Content-Type` = paste0("text/", private$upload_format),
+                                         `Content-Type` = paste0("application/", upload_format),
                                          Authorization = paste("Bearer", private$token)),
                           opts = list(...)
                         )
-                        if(verbose) {
+                        if (verbose) {
                           print("HTTP header")
                           print(cli)
                         }
                         res <- cli$post(path = "api/valuedata",
                                         body = list(data = xml_data))
-                        if(verbose) {
+                        if (verbose) {
                           print(res)
                         }
                         res$raise_for_status()
@@ -312,26 +324,27 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' generally only granted to load serving entities, with rare exceptions.
                       #' @param filename path to file with XML to upload
                       #' @param verbose logical set to TRUE for copious printed output
-                      #' @param ... additional parameter passed to crul options
-                      upload_holiday = function(filename, verbose = FALSE, ...) {
+                      #' @param ... additional parameters passed to crul options
+                      upload_holiday = function(filename, upload_format = "json", verbose = FALSE, ...) {
                         checkmate::assert_file(filename, access = "r")
+                        checkmate::assert_choice(upload_format, choices = c("json", "xml"))
                         checkmate::assert_logical(verbose, len = 1, any.missing = FALSE)
                         xml_data <- paste(readLines(filename, n = -1), collapse = "\n")
-                        if(verbose) print(xml_data)
+                        if (verbose) print(xml_data)
                         self$get_token(...)
                         cli <- crul::HttpClient$new(
                           self$midas_url,
                           headers = list(Accept = paste0("application/", private$data_format),
-                                         `Content-Type` = paste0("text/", private$upload_format),
+                                         `Content-Type` = paste0("application/", upload_format),
                                          Authorization = paste("Bearer", private$token)),
                           opts = list(...)
                         )
-                        if(verbose) {
+                        if (verbose) {
                           print(cli)
                         }
                         res <- cli$post(path = "api/holiday",
                                         body = list(data = xml_data))
-                        if(verbose) {
+                        if (verbose) {
                           print(res)
                         }
                         res$raise_for_status()
@@ -348,7 +361,6 @@ MIDAS <- R6::R6Class("MIDAS",
                       organization = NA,
                       token = NA,
                       token_dt = NA,
-                      data_format = "json",
-                      upload_format = "json"
+                      data_format = "json"
                     )
 )
