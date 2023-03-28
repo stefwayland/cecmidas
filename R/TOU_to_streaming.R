@@ -34,15 +34,15 @@
 #' @export
 TOU_to_streaming <- function(holiday_file, tou_file, start_date,
                              end_date, time_zone = "America/Los_Angeles") {
-  if (!requireNamespace("data.table", quietly = TRUE)) {
-    stop(
-      "Package \"data.table\" must be installed to use this function.",
-      call. = FALSE
-    )
-  }
   if (!requireNamespace("lubridate", quietly = TRUE)) {
     stop(
       "Package \"lubridate\" must be installed to use this function.",
+      call. = FALSE
+    )
+  }
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop(
+      "Package \"data.table\" must be installed to use this function.",
       call. = FALSE
     )
   }
@@ -91,14 +91,53 @@ TOU_to_streaming <- function(holiday_file, tou_file, start_date,
   # Drop hours due to DST changes
   # p2 <- unique(p2, by = c("RIN", "Unit", "DateStart", "TimeStart"))
   p2[, c("DateEnd", "TimeEnd") := IDateTime(lubridate::with_tz(starttime + 3599, tz = "UTC"))]
-  p2
+  p2[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
+         RatePlan_Url, RateType, Sector, API_Url, DateStart,
+         TimeStart, DayStart = DayType, DayEnd = DayType, ValueName, Value, Unit)]
+}
+
+# Convert to JSON for upload ------------------------------------------------
+
+#' Convert streaming rate to JSON for upload
+#'
+#' @description
+#' Function to convert the data.table output of the TOU_to_streaming function
+#' into JSON for upload to MIDAS.
+#'
+#' @param DT data.table created by the TOU_to_streaming function
+#' @param file_name atomic character with the path where you want to save the JSON file
+#' @param prettify atomic logical TRUE to generate prettified JSON, FALSE by default
+#'
+#' @import data.table
+#' @export
+rate_to_json <- function(DT, file_name, prettify = FALSE) {
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop(
+      "Package \"data.table\" must be installed to use this function.",
+      call. = FALSE
+    )
+  }
+  rateinfo <- unique(DT[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
+                            RatePlan_Url, RateType, Sector, API_Url)])
+
+  # Build list to convert to JSON
+  rtl <- vector("list", length = nrow(rateinfo))
+  for (rt in seq_along(rtl)) {
+    rtl[[rt]] <- c(as.list(rateinfo[rt]),
+                   list(ValueInformation = DT[RIN == rateinfo[rt, RIN],
+                                              .(ValueName, DateStart, DateEnd,
+                                                DayStart, DayEnd, TimeStart,
+                                                TimeEnd, Value, Unit)]))
+  }
+  DemandData <- jsonlite::toJSON(rtl, dataframe = "rows", auto_unbox = TRUE, pretty = prettify)
+  writeChar(DemandData, file_name, eos = NULL)
 }
 
 
 # Convert to XML for upload -------------------------------------------------
 
 xml_non_na <- function(value, name) {
-  if(!is.na(value)) {
+  if (!is.na(value)) {
     paste0("<", name, ">", value, "</", name, ">")
   }
 }
@@ -144,8 +183,8 @@ rate_to_xml <- function(DT, file_name) {
                          paste0("<DateEnd>", ratevalue[vd, DateEnd], "</DateEnd>"),
                          paste0("<TimeStart>", ratevalue[vd, TimeStart], "</TimeStart>"),
                          paste0("<TimeEnd>", ratevalue[vd, TimeEnd], "</TimeEnd>"),
-                         paste0("<DayStart>", ratevalue[vd, DayType], "</DayStart>"),
-                         paste0("<DayEnd>", ratevalue[vd, DayType], "</DayEnd>"),
+                         paste0("<DayStart>", ratevalue[vd, DayStart], "</DayStart>"),
+                         paste0("<DayEnd>", ratevalue[vd, DayEnd], "</DayEnd>"),
                          paste0("<ValueName>", ratevalue[vd, ValueName], "</ValueName>"),
                          paste0("<Value>", ratevalue[vd, Value], "</Value>"),
                          paste0("<Unit>", ratevalue[vd, Unit], "</Unit>"),
