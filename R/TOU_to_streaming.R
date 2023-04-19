@@ -15,6 +15,83 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
+# TODO: Break TOU_to_streaming down into two or three functions
+#   1. import_holidays DONE
+#   2. import_rate_info - imports RIN, rate type, etc.
+#   3. import_rate_values - imports the rate values from CSV. Rate can be TOU or streaming
+
+# Import data from CSV -----------------------------------------------
+
+#' Holiday CSV import
+#'
+#' @description
+#' Function to import CSV files that contain holiday information. CSV must contain the two columns
+#' "holiday_name" and "date". The date column must be formatted unambiguously, YYYY-MM-DD is best.
+#' Holiday dates should be in local time. For example, New Year's Day 2023 is 2023-01-01.
+#'
+#' @param holiday_file atomic character with the path to a CSV file with holiday dates and information
+#'
+#' @import data.table
+#' @export
+import_holidays <- function(holiday_file) {
+
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop(
+      "Package \"data.table\" must be installed to use this function.",
+      call. = FALSE
+    )
+  }
+
+  # check function arguments -------------------------------------------------
+  checkmate::assert_file_exists(holiday_file, extension = "csv")
+  holidays <- fread(holiday_file, colClasses = c("character", "IDate"))
+  checkmate::assert_names(names(holidays), permutation.of = c("holiday_name", "date"))
+  holidays
+}
+
+# Convert holidays to JSON for upload ----------------------------------------
+
+#' Convert streaming rate to JSON for upload
+#'
+#' @description
+#' Function to encode the data.table output of the TOU_to_streaming function
+#' into JSON for upload to MIDAS.
+#'
+#' @param holidays data.frame or data.table like the ones created by the import_holidays function
+#' @param energy_code atomic character two character MIDAS energy code for uploading company
+#' @param energy_desc atomic character name of uploading energy company from Energy lookup table
+#' @param prettify atomic logical TRUE to generate prettified JSON, FALSE by default
+#'
+#' @import data.table
+#' @export
+holidays_to_json <- function(holidays, energy_code, energy_desc, prettify = FALSE) {
+  if (!requireNamespace("data.table", quietly = TRUE)) {
+    stop(
+      "Package \"data.table\" must be installed to use this function.",
+      call. = FALSE
+    )
+  }
+  checkmate::assert_flag(prettify)
+  checkmate::assert_data_frame(holidays)
+  checkmate::assert_names(names(holidays), permutation.of = c("holiday_name", "date"))
+  setDT(holidays)
+
+  holidayinfo <- unique(holidays[, .(holiday_name, date)])
+  setnames(holidayinfo, c("HolidayDescription", "DateOfHoliday"))
+  holidayinfo[, EnergyCode := energy_code]
+  holidayinfo[, EnergyDescription := energy_desc]
+  # Build list to convert to JSON
+  rtl <- vector("list", length = nrow(holidayinfo))
+  for (rt in seq_along(rtl)) {
+    rtl[[rt]] <- c(as.list(holidayinfo[rt]))
+  }
+
+  hol <- jsonlite::toJSON(rtl, dataframe = "rows", auto_unbox = TRUE, pretty = prettify)
+
+  hol
+}
+
 #
 # TOU to XML converter
 #' TOU to streaming rate converter
@@ -23,7 +100,7 @@
 #' Function to import CSV files that contain TOU rate information and convert
 #' the TOU structure to a streaming structure.
 #'
-#' @param holiday_file atomic character with the path to a CSV file with holiday dates and information
+#' @param holidays data.frame of holiday dates and information from import_holidays()
 #' @param tou_file atomic character with the path to a CSV file with TOU rate information
 #' @param start_date atomic character or Date for the beginning of the period the streaming rate should cover
 #' @param end_date atomic character or Date for the end of the period the streaming rate should cover
@@ -32,7 +109,7 @@
 #' @importFrom lubridate with_tz
 #' @import data.table
 #' @export
-TOU_to_streaming <- function(holiday_file, tou_file, start_date,
+TOU_to_streaming <- function(holidays, tou_file, start_date,
                              end_date, time_zone = "America/Los_Angeles") {
   if (!requireNamespace("lubridate", quietly = TRUE)) {
     stop(
@@ -48,17 +125,18 @@ TOU_to_streaming <- function(holiday_file, tou_file, start_date,
   }
 
   # check function arguments -------------------------------------------------
-  checkmate::assert_file_exists(holiday_file, extension = "csv")
+  checkmate::assert_data_frame(holidays)
+  checkmate::assert_names(names(holidays), permutation.of = c("holiday_name", "date"))
   checkmate::assert_file_exists(tou_file, extension = "csv")
-  tryCatch(start_date <- as.IDate(start_date), error = function(e) stop("start_date must be a date formatted like YYYY-MM-DD"))
-  tryCatch(end_date <- as.IDate(end_date), error = function(e) stop("end_date must be a date formatted like YYYY-MM-DD"))
+  tryCatch(start_date <- as.IDate(start_date),
+           error = function(e) stop("start_date must be a date formatted like 'YYYY-MM-DD'"))
+  tryCatch(end_date <- as.IDate(end_date),
+           error = function(e) stop("end_date must be a date formatted like 'YYYY-MM-DD'"))
   checkmate::assert_date(start_date, any.missing = FALSE, len = 1)
   checkmate::assert_date(end_date, any.missing = FALSE, len = 1)
   checkmate::assert_choice(time_zone, OlsonNames())
 
-  # read in holiday and tou data and check column names ----------------------
-  holidays <- fread(holiday_file, colClasses = c("character", "IDate"))
-  checkmate::assert_names(names(holidays), permutation.of = c("holiday_name", "date"))
+  # read in tou data and check column names ----------------------
   tou <- fread(tou_file, colClasses = c(DateStart = "IDate", DateEnd = "IDate",
                                         TimeStart = "ITime", TimeEnd = "ITime"))
   checkmate::assert_names(names(tou),
@@ -68,10 +146,12 @@ TOU_to_streaming <- function(holiday_file, tou_file, start_date,
                                              "Value", "Unit"))
 
   # Create table of prices for all hours of the year for each rate -----------
-  ## TODO: Consider adding Unit to unique query in case of time-varying demand charges or inclusion of other units in TOU rates
-  prices <- CJ(RIN = unique(tou$RIN),
+  ## TODO: Add Unit to unique query in case of time-varying demand charges or inclusion of other units in TOU rates
+  prices <- CJ(RIN = tou$RIN,
                DateStart = seq(as.IDate(start_date), as.IDate(end_date), by = "day"),
-               TimeStart = seq(as.ITime("00:00"), as.ITime("23:00"), by = 3600))
+               TimeStart = seq(as.ITime("00:00"), as.ITime("23:00"), by = 3600),
+               unique = TRUE)
+  prices <- prices[unique(tou[, .(RIN, Unit)]), on = "RIN", allow.cartesian = TRUE]
   # Set Day to equal Monday = 1 through Sunday = 7
   prices[, DayType := wday(DateStart) - 1]
   prices[DayType == 0, DayType := 7]
@@ -81,45 +161,52 @@ TOU_to_streaming <- function(holiday_file, tou_file, start_date,
   p2 <- tou[prices, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
                       RatePlan_Url, RateType, Sector, API_Url, DateStart,
                       TimeStart, DayType, ValueName, Value, Unit),
-            on = .(RIN = RIN, DateStart <= DateStart, DateEnd >= DateStart,
+            on = .(RIN = RIN, Unit = Unit, DateStart <= DateStart, DateEnd >= DateStart,
                    DayStart <= DayType, DayEnd >= DayType, TimeStart <= TimeStart, TimeEnd >= TimeStart)]
 
 
   # Create datetime fields and convert to UTC
-  p2[, starttime := as.POSIXct(DateStart, time = TimeStart, tz = "America/Los_Angeles")]
+  p2[, starttime := as.POSIXct(DateStart, time = TimeStart, tz = time_zone)]
   p2[, c("DateStart", "TimeStart") := IDateTime(lubridate::with_tz(starttime, tz = "UTC"))]
   # Drop hours due to DST changes
   # p2 <- unique(p2, by = c("RIN", "Unit", "DateStart", "TimeStart"))
   p2[, c("DateEnd", "TimeEnd") := IDateTime(lubridate::with_tz(starttime + 3599, tz = "UTC"))]
   p2[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
          RatePlan_Url, RateType, Sector, API_Url, DateStart,
-         TimeStart, DayStart = DayType, DayEnd = DayType, ValueName, Value, Unit)]
+         TimeStart, DateEnd, TimeEnd, DayStart = DayType, DayEnd = DayType, ValueName, Value, Unit)]
 }
 
-# Convert to JSON for upload ------------------------------------------------
+# Convert rate to JSON for upload ------------------------------------------------
 
 #' Convert streaming rate to JSON for upload
 #'
 #' @description
-#' Function to convert the data.table output of the TOU_to_streaming function
+#' Function to encode the data.table output of the TOU_to_streaming function
 #' into JSON for upload to MIDAS.
 #'
 #' @param DT data.table created by the TOU_to_streaming function
-#' @param file_name atomic character with the path where you want to save the JSON file
 #' @param prettify atomic logical TRUE to generate prettified JSON, FALSE by default
 #'
 #' @import data.table
 #' @export
-rate_to_json <- function(DT, file_name, prettify = FALSE) {
+rate_to_json <- function(DT, prettify = FALSE) {
   if (!requireNamespace("data.table", quietly = TRUE)) {
     stop(
       "Package \"data.table\" must be installed to use this function.",
       call. = FALSE
     )
   }
+  checkmate::assert_flag(prettify)
+  checkmate::assert_data_table(DT)
+  checkmate::assert_names(names(DT),
+                          permutation.of = c("RIN", "AltRateName1", "AltRateName2",
+                                             "SignupCloseDate", "RateName",  "RatePlan_Url",
+                                             "RateType", "Sector", "API_Url", "DateStart",
+                                             "TimeStart", "DateEnd", "TimeEnd", "DayStart",
+                                             "DayEnd", "ValueName", "Value", "Unit"))
+
   rateinfo <- unique(DT[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
                             RatePlan_Url, RateType, Sector, API_Url)])
-
   # Build list to convert to JSON
   rtl <- vector("list", length = nrow(rateinfo))
   for (rt in seq_along(rtl)) {
@@ -130,30 +217,45 @@ rate_to_json <- function(DT, file_name, prettify = FALSE) {
                                                 TimeEnd, Value, Unit)]))
   }
   DemandData <- jsonlite::toJSON(rtl, dataframe = "rows", auto_unbox = TRUE, pretty = prettify)
-  writeChar(DemandData, file_name, eos = NULL)
+
+  DemandData
 }
 
 
 # Convert to XML for upload -------------------------------------------------
 
+#' @title Only write non-missing XML blocks
+#'
+#' @description
+#' Returns a string of xml containing the name and value when value is non-missing
+#'
+#' @param value A value to be evaluated for missingness
+#' @param name A character string to be used as the xml tag
+#'
+#' @return A character string of xml
 xml_non_na <- function(value, name) {
   if (!is.na(value)) {
     paste0("<", name, ">", value, "</", name, ">")
   }
 }
 
-#' Convert streaming rate to XML for upload
+#' @title Convert streaming rate to XML for upload
 #'
 #' @description
-#' Function to convert the data.table output of the TOU_to_streaming function
+#' Function to encode the data.table output of the TOU_to_streaming function
 #' into XML for upload to MIDAS.
 #'
 #' @param DT data.table created by the TOU_to_streaming function
-#' @param file_name atomic character with the path where you want to save the XML
+#' @return An atomic character containing the rate data encoded as xml
 #'
 #' @import data.table
 #' @export
-rate_to_xml <- function(DT, file_name) {
+#' @examples
+#' holidays <- import_holidays(holiday_file)
+#' DT <- TOU_to_streaming(holidays, tou_file, start_date, end_date)
+#'
+#' rate_to_xml(DT)
+rate_to_xml <- function(DT) {
   if (!requireNamespace("data.table", quietly = TRUE)) {
     stop(
       "Package \"data.table\" must be installed to use this function.",
@@ -199,7 +301,21 @@ rate_to_xml <- function(DT, file_name) {
   }
   DemandData <- paste("<?xml version='1.0' encoding='UTF-8'?>",
                       "<DemandData>", paste(DemandData, collapse = "\n"), "</DemandData>", "\n", sep = "\n")
-
-  writeChar(DemandData, file_name, eos = NULL)
+  DemandData
 }
 
+#' Save JSON or XML encoded rate or JSON encoded holiday to a file
+#'
+#' @description
+#' Function to save JSON or XML encoded rate to a file.
+#' This also works to save encoded holidays to a file.
+#'
+#' @param encoded_rate atomic character created by rate_to_xml or rate_to_json
+#' @param file_name atomic character with the path where you want to save the file
+#'
+#' @export
+save_rate <- function(encoded_rate, file_name) {
+  checkmate::assert_character(encoded_rate, len = 1)
+  checkmate::assert_character(file_name, len = 1)
+  writeChar(encoded_rate, file_name, eos = NULL)
+}
