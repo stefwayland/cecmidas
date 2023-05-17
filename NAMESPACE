@@ -2,6 +2,10 @@
 
 export(MIDAS)
 export(TOU_to_streaming)
+export(holidays_to_json)
+export(import_holidays)
+export(rate_to_json)
 export(rate_to_xml)
+export(save_rate)
 import(data.table)
 importFrom(lubridate,with_tz)

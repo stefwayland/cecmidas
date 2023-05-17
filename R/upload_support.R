@@ -170,22 +170,6 @@ TOU_to_streaming <- function(holidays, tou_file, start_date,
 
 # Streaming rate upload -----------------------------------------------
 
-# TODO: write this function to match the output of TOU_to_streaming()
-#' Streaming rate CSV to rate converter
-#'
-#' @description
-#' Function to import CSV files that contain streaming rate information and convert
-#' to a streaming structure to use elsewhere in this package.
-#'
-#' @param holidays data.frame of holiday dates and information from import_holidays()
-#' @param stream_file atomic character with the path to a CSV file with streaming rate information
-#' @param start_date atomic character or Date for the beginning of the period the streaming rate should cover
-#' @param end_date atomic character or Date for the end of the period the streaming rate should cover
-#' @param time_zone atomic character the time zone where the rate is offered. This should be one of the time zones listed in OlsonNames(). Dates and times in the CSV are assumed to be in the specified time zone.
-#'
-#' @importFrom lubridate with_tz
-#' @import data.table
-#' @export
 # csv_to_streaming <- function(holidays, stream_file, start_date,
 #                              end_date, time_zone = "America/Los_Angeles") {
 #   if (!requireNamespace("lubridate", quietly = TRUE)) {

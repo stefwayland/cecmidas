@@ -83,7 +83,9 @@ Print some important characteristics of the MIDAS object
 \if{html}{\out{<a id="method-MIDAS-register"></a>}}
 \if{latex}{\out{\hypertarget{method-MIDAS-register}{}}}
 \subsection{Method \code{register()}}{
-This function registers a username and password. The CEC requires that you be registered and respond to an authentication email before obtaining an access token. You should only have to do this once.
+This function registers a username and password.
+The CEC requires that you be registered and respond to an authentication email
+before obtaining an access token. You should only have to do this once.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{MIDAS$register(...)}\if{html}{\out{</div>}}
 }
@@ -216,7 +218,7 @@ Get list of rates with history available from MIDAS.
 \subsection{Method \code{lookups()}}{
 Get lookup table information. Possible lookup tables are currently
 Country, Daytype, Distribution, Enduse, Energy,
-Location, RateType, Sector, State, and TimeZone.
+Location, RateType, Sector, State, and Unit.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{MIDAS$lookups(table_name, new_token = FALSE, ...)}\if{html}{\out{</div>}}
 }
@@ -259,13 +261,15 @@ Get holiday table information.
 Requires special CEC approval. Upload access is
 generally only granted to load serving entities, with rare exceptions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MIDAS$upload_rate(filename, verbose = FALSE, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{MIDAS$upload_rate(filename, upload_format = "json", verbose = FALSE, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{filename}}{path to file with XML to upload}
+
+\item{\code{upload_format}}{character One of "json" or "xml"}
 
 \item{\code{verbose}}{logical set to TRUE for copious printed output}
 
@@ -282,7 +286,7 @@ Upload new holidays}
 Requires special CEC approval. Upload access is
 generally only granted to load serving entities, with rare exceptions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MIDAS$upload_holiday(filename, verbose = FALSE, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{MIDAS$upload_holiday(filename, upload_format = "json", verbose = FALSE, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -290,9 +294,11 @@ generally only granted to load serving entities, with rare exceptions.
 \describe{
 \item{\code{filename}}{path to file with XML to upload}
 
+\item{\code{upload_format}}{character One of "json" or "xml"}
+
 \item{\code{verbose}}{logical set to TRUE for copious printed output}
 
-\item{\code{...}}{additional parameter passed to crul options}
+\item{\code{...}}{additional parameters passed to crul options}
 }
 \if{html}{\out{</div>}}
 }

@@ -321,6 +321,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @description Requires special CEC approval. Upload access is
                       #' generally only granted to load serving entities, with rare exceptions.
                       #' @param filename path to file with XML to upload
+                      #' @param upload_format character One of "json" or "xml"
                       #' @param verbose logical set to TRUE for copious printed output
                       #' @param ... additional parameters passed to crul options
                       upload_holiday = function(filename, upload_format = "json", verbose = FALSE, ...) {
