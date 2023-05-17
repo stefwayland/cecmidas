@@ -43,11 +43,16 @@ devtools::install_github("stefwayland/cecmidas")
 
 ## Getting Started
 
+Please start by referring to the [MIDAS
+Documentation](https://gitlab.com/CEC-MIDAS/midas-documentation).
+
 Using MIDAS requires that you first register with the server. You only
 need to do this once. MIDAS will send a conifrmation email to the
 address you give it. Click through the confirmation link and you will be
 good to go! (Unless you are a utility in California who needs upload
-access, then see the MIDAS documentation for next steps.)
+access, then see the [MIDAS
+documentation](https://gitlab.com/CEC-MIDAS/midas-documentation) for
+next steps.)
 
 cecmidas uses [R6](https://r6.r-lib.org/) objects, so the code here
 looks a little different than standard R code. The first step to using

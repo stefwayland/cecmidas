@@ -3,16 +3,16 @@
 # Copyright (C) 2023 Stefanie Wayland
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published
-# by the Free Software Foundation, either version 3 of the License, or
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
+# GNU General Public License for more details.
 #
-# You should have received a copy of the GNU Affero General Public License
+# You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #' MIDAS R6 class that connects to the MIDAS Rate API
@@ -60,8 +60,6 @@ MIDAS <- R6::R6Class("MIDAS",
                         print(paste("username:", private$username))
                         print(paste("token:", private$token))
                         print(paste("token age:", format(Sys.time() - private$token_dt, units = "secs"), "seconds"))
-                        print(paste("download format:", private$data_format))
-                        print(paste("upload format:", private$upload_format))
                       },
 
                       #' @title Register a username and password
@@ -243,7 +241,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @description
                       #' Get lookup table information. Possible lookup tables are currently
                       #' Country, Daytype, Distribution, Enduse, Energy,
-                      #' Location, RateType, Sector, State, and TimeZone.
+                      #' Location, RateType, Sector, State, and Unit.
                       #' @param table_name atomic character lookup table name.
                       #' @param new_token logical Force requesting a new token, FALSE by default
                       #' @param ... additional parameters passed to curl

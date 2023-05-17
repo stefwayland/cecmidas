@@ -3,23 +3,18 @@
 # Copyright (C) 2023 Stefanie Wayland
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published
-# by the Free Software Foundation, either version 3 of the License, or
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
+# GNU General Public License for more details.
 #
-# You should have received a copy of the GNU Affero General Public License
+# You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-# TODO: Break TOU_to_streaming down into two or three functions
-#   1. import_holidays DONE
-#   2. import_rate_info - imports RIN, rate type, etc.
-#   3. import_rate_values - imports the rate values from CSV. Rate can be TOU or streaming
 
 # Import data from CSV -----------------------------------------------
 
@@ -92,8 +87,6 @@ holidays_to_json <- function(holidays, energy_code, energy_desc, prettify = FALS
   hol
 }
 
-#
-# TOU to XML converter
 #' TOU to streaming rate converter
 #'
 #' @description
@@ -104,7 +97,7 @@ holidays_to_json <- function(holidays, energy_code, energy_desc, prettify = FALS
 #' @param tou_file atomic character with the path to a CSV file with TOU rate information
 #' @param start_date atomic character or Date for the beginning of the period the streaming rate should cover
 #' @param end_date atomic character or Date for the end of the period the streaming rate should cover
-#' @param time_zone atomic character the time zone where the rate is offered. This should be one of the time zones listed in OlsonNames()
+#' @param time_zone atomic character the time zone where the rate is offered. This should be one of the time zones listed in OlsonNames(). Dates and times in the CSV are assumed to be in the specified time zone.
 #'
 #' @importFrom lubridate with_tz
 #' @import data.table
@@ -146,7 +139,6 @@ TOU_to_streaming <- function(holidays, tou_file, start_date,
                                              "Value", "Unit"))
 
   # Create table of prices for all hours of the year for each rate -----------
-  ## TODO: Add Unit to unique query in case of time-varying demand charges or inclusion of other units in TOU rates
   prices <- CJ(RIN = tou$RIN,
                DateStart = seq(as.IDate(start_date), as.IDate(end_date), by = "day"),
                TimeStart = seq(as.ITime("00:00"), as.ITime("23:00"), by = 3600),
@@ -176,12 +168,96 @@ TOU_to_streaming <- function(holidays, tou_file, start_date,
          TimeStart, DateEnd, TimeEnd, DayStart = DayType, DayEnd = DayType, ValueName, Value, Unit)]
 }
 
+# Streaming rate upload -----------------------------------------------
+
+# TODO: write this function to match the output of TOU_to_streaming()
+#' Streaming rate CSV to rate converter
+#'
+#' @description
+#' Function to import CSV files that contain streaming rate information and convert
+#' to a streaming structure to use elsewhere in this package.
+#'
+#' @param holidays data.frame of holiday dates and information from import_holidays()
+#' @param stream_file atomic character with the path to a CSV file with streaming rate information
+#' @param start_date atomic character or Date for the beginning of the period the streaming rate should cover
+#' @param end_date atomic character or Date for the end of the period the streaming rate should cover
+#' @param time_zone atomic character the time zone where the rate is offered. This should be one of the time zones listed in OlsonNames(). Dates and times in the CSV are assumed to be in the specified time zone.
+#'
+#' @importFrom lubridate with_tz
+#' @import data.table
+#' @export
+# csv_to_streaming <- function(holidays, stream_file, start_date,
+#                              end_date, time_zone = "America/Los_Angeles") {
+#   if (!requireNamespace("lubridate", quietly = TRUE)) {
+#     stop(
+#       "Package \"lubridate\" must be installed to use this function.",
+#       call. = FALSE
+#     )
+#   }
+#   if (!requireNamespace("data.table", quietly = TRUE)) {
+#     stop(
+#       "Package \"data.table\" must be installed to use this function.",
+#       call. = FALSE
+#     )
+#   }
+#
+#   # check function arguments -------------------------------------------------
+#   checkmate::assert_data_frame(holidays)
+#   checkmate::assert_names(names(holidays), permutation.of = c("holiday_name", "date"))
+#   checkmate::assert_file_exists(stream_file, extension = "csv")
+#   tryCatch(start_date <- as.IDate(start_date),
+#            error = function(e) stop("start_date must be a date formatted like 'YYYY-MM-DD'"))
+#   tryCatch(end_date <- as.IDate(end_date),
+#            error = function(e) stop("end_date must be a date formatted like 'YYYY-MM-DD'"))
+#   checkmate::assert_date(start_date, any.missing = FALSE, len = 1)
+#   checkmate::assert_date(end_date, any.missing = FALSE, len = 1)
+#   checkmate::assert_choice(time_zone, OlsonNames())
+#
+#   # read in stream data and check column names ----------------------
+#   stream <- fread(stream_file, colClasses = c(DateStart = "IDate", DateEnd = "IDate",
+#                                            TimeStart = "ITime", TimeEnd = "ITime"))
+#   checkmate::assert_names(names(stream),
+#                           permutation.of = c("RIN", "AltRateName1", "AltRateName2", "SignupCloseDate", "RateName",
+#                                              "RatePlan_Url", "RateType", "Sector", "API_Url", "EndUse", "DateStart",
+#                                              "DateEnd", "DayStart", "DayEnd", "TimeStart", "TimeEnd", "ValueName",
+#                                              "Value", "Unit"))
+#
+#   # Create table of prices for all hours of the year for each rate -----------
+#   prices <- CJ(RIN = stream$RIN,
+#                DateStart = seq(as.IDate(start_date), as.IDate(end_date), by = "day"),
+#                TimeStart = seq(as.ITime("00:00"), as.ITime("23:00"), by = 3600),
+#                unique = TRUE)
+#   prices <- prices[unique(stream[, .(RIN, Unit)]), on = "RIN", allow.cartesian = TRUE]
+#   # Set Day to equal Monday = 1 through Sunday = 7
+#   prices[, DayType := wday(DateStart) - 1]
+#   prices[DayType == 0, DayType := 7]
+#   # Set Day to 8 on holidays
+#   prices[holidays, DayType := 8, on = .(DateStart = date)]
+#
+#   p2 <- stream[prices, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
+#                       RatePlan_Url, RateType, Sector, API_Url, DateStart,
+#                       TimeStart, DayType, ValueName, Value, Unit),
+#             on = .(RIN = RIN, Unit = Unit, DateStart <= DateStart, DateEnd >= DateStart,
+#                    DayStart <= DayType, DayEnd >= DayType, TimeStart <= TimeStart, TimeEnd >= TimeStart)]
+#
+#
+#   # Create datetime fields and convert to UTC
+#   p2[, starttime := as.POSIXct(DateStart, time = TimeStart, tz = time_zone)]
+#   p2[, c("DateStart", "TimeStart") := IDateTime(lubridate::with_tz(starttime, tz = "UTC"))]
+#   # Drop hours due to DST changes
+#   # p2 <- unique(p2, by = c("RIN", "Unit", "DateStart", "TimeStart"))
+#   p2[, c("DateEnd", "TimeEnd") := IDateTime(lubridate::with_tz(starttime + 3599, tz = "UTC"))]
+#   p2[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
+#          RatePlan_Url, RateType, Sector, API_Url, DateStart,
+#          TimeStart, DateEnd, TimeEnd, DayStart = DayType, DayEnd = DayType, ValueName, Value, Unit)]
+# }
+
 # Convert rate to JSON for upload ------------------------------------------------
 
 #' Convert streaming rate to JSON for upload
 #'
 #' @description
-#' Function to encode the data.table output of the TOU_to_streaming function
+#' Function to encode the data.table output of TOU_to_streaming() or csv_to_streaming()
 #' into JSON for upload to MIDAS.
 #'
 #' @param DT data.table created by the TOU_to_streaming function
@@ -217,7 +293,7 @@ rate_to_json <- function(DT, prettify = FALSE) {
                                                 TimeEnd, Value, Unit)]))
   }
   DemandData <- jsonlite::toJSON(rtl, dataframe = "rows", auto_unbox = TRUE, pretty = prettify)
-
+# FIXME: Add newline at end of file
   DemandData
 }
 
@@ -303,6 +379,8 @@ rate_to_xml <- function(DT) {
                       "<DemandData>", paste(DemandData, collapse = "\n"), "</DemandData>", "\n", sep = "\n")
   DemandData
 }
+
+# Save XML or JSON encoded files for later upload -----------------------
 
 #' Save JSON or XML encoded rate or JSON encoded holiday to a file
 #'
