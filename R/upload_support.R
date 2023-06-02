@@ -83,6 +83,7 @@ holidays_to_json <- function(holidays, energy_code, energy_desc, prettify = FALS
   }
 
   hol <- jsonlite::toJSON(rtl, dataframe = "rows", auto_unbox = TRUE, pretty = prettify)
+  hol <- paste0(hol, "\n")
 
   hol
 }
@@ -150,12 +151,21 @@ TOU_to_streaming <- function(holidays, tou_file, start_date,
   # Set Day to 8 on holidays
   prices[holidays, DayType := 8, on = .(DateStart = date)]
 
+  # Merge prices across all hours
   p2 <- tou[prices, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
                       RatePlan_Url, RateType, Sector, API_Url, DateStart,
                       TimeStart, DayType, ValueName, Value, Unit),
             on = .(RIN = RIN, Unit = Unit, DateStart <= DateStart, DateEnd >= DateStart,
                    DayStart <= DayType, DayEnd >= DayType, TimeStart <= TimeStart, TimeEnd >= TimeStart)]
 
+  # Check that there are no missing prices
+  if(p2[is.na(Value), .N] > 0) {
+    warning(p2[is.na(Value), .N], " hours with missing Values on RIN(s): ",
+            paste(p2[is.na(Value), unique(RIN)], collapse = ","),
+            "\nDuring the hours beginning ", p2[is.na(Value), min(TimeStart) / 3600],
+            " to ", p2[is.na(Value), max(TimeStart) / 3600],
+            "\nFix this by adding data to your TOU CSV file.")
+  }
 
   # Create datetime fields and convert to UTC
   p2[, starttime := as.POSIXct(DateStart, time = TimeStart, tz = time_zone)]
@@ -168,7 +178,7 @@ TOU_to_streaming <- function(holidays, tou_file, start_date,
          TimeStart, DateEnd, TimeEnd, DayStart = DayType, DayEnd = DayType, ValueName, Value, Unit)]
 }
 
-# Streaming rate upload -----------------------------------------------
+# Streaming rate prep -----------------------------------------------
 
 # csv_to_streaming <- function(holidays, stream_file, start_date,
 #                              end_date, time_zone = "America/Los_Angeles") {
@@ -277,7 +287,8 @@ rate_to_json <- function(DT, prettify = FALSE) {
                                                 TimeEnd, Value, Unit)]))
   }
   DemandData <- jsonlite::toJSON(rtl, dataframe = "rows", auto_unbox = TRUE, pretty = prettify)
-# FIXME: Add newline at end of file
+  DemandData <- paste0(DemandData, "\n")
+
   DemandData
 }
 
@@ -322,8 +333,8 @@ rate_to_xml <- function(DT) {
       call. = FALSE
     )
   }
-  rateinfo <- unique(DT[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
-                            RatePlan_Url, RateType, Sector, API_Url)])
+  rateinfo <- DT[, .SD[1, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
+                            RatePlan_Url, RateType, Sector, API_Url)], by = RIN]
   DemandData <- vector(mode = "list", length = nrow(rateinfo))
   for(rt in 1:nrow(rateinfo)) {
     RateInformation <- paste0(
@@ -379,5 +390,10 @@ rate_to_xml <- function(DT) {
 save_rate <- function(encoded_rate, file_name) {
   checkmate::assert_character(encoded_rate, len = 1)
   checkmate::assert_character(file_name, len = 1)
+  if (file.exists(file_name)) {
+    unlink(file_name)
+    # print(file.exists(file_name))
+    warning("File ", file_name, " overwritten\n")
+  }
   writeChar(encoded_rate, file_name, eos = NULL)
 }

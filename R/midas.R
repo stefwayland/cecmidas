@@ -100,7 +100,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @param ... additional parameters passed to curl
                       get_token = function(new_token = FALSE, ...) {
                         checkmate::assert_logical(new_token, len = 1, any.missing = FALSE)
-                        if (is.na(private$token_dt) | isTRUE(Sys.time() - private$token_dt >= 600) | new_token) {
+                        if (is.na(private$token_dt) | isTRUE(as.numeric(Sys.time() - private$token_dt, units = "secs") >= 600) | new_token) {
                           cli <- crul::HttpClient$new(self$midas_url, opts = list(...),
                                                       headers = list(Authorization = paste("Basic", jsonlite::base64_enc(paste(private$username, private$password, sep = ":")))))
                           res <- cli$get(path = "api/Token")
@@ -291,7 +291,7 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @param upload_format character One of "json" or "xml"
                       #' @param verbose logical set to TRUE for copious printed output
                       #' @param ... additional parameters passed to curl
-                      upload_rate = function(filename, upload_format = "json", verbose = FALSE, ...) {
+                      upload_rate = function(filename, upload_format = "xml", verbose = FALSE, ...) {
                         checkmate::assert_file(filename, access = "r")
                         checkmate::assert_choice(upload_format, choices = c("json", "xml"))
                         checkmate::assert_logical(verbose, len = 1, any.missing = FALSE)

@@ -261,7 +261,7 @@ Get holiday table information.
 Requires special CEC approval. Upload access is
 generally only granted to load serving entities, with rare exceptions.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MIDAS$upload_rate(filename, upload_format = "json", verbose = FALSE, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{MIDAS$upload_rate(filename, upload_format = "xml", verbose = FALSE, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
