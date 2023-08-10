@@ -14,4 +14,5 @@ save_rate(encoded_rate, file_name)
 \description{
 Function to save JSON or XML encoded rate to a file.
 This also works to save encoded holidays to a file.
+If the file already exists, it will be overwritten with a warning.
 }

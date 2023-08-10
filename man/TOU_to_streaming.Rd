@@ -9,7 +9,8 @@ TOU_to_streaming(
   tou_file,
   start_date,
   end_date,
-  time_zone = "America/Los_Angeles"
+  time_zone = "America/Los_Angeles",
+  verbose = FALSE
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ TOU_to_streaming(
 \item{end_date}{atomic character or Date for the end of the period the streaming rate should cover}
 
 \item{time_zone}{atomic character the time zone where the rate is offered. This should be one of the time zones listed in OlsonNames(). Dates and times in the CSV are assumed to be in the specified time zone.}
+
+\item{verbose}{atomic logical whether to print messages to support debugging}
 }
 \description{
 Function to import CSV files that contain TOU rate information and convert

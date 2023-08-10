@@ -88,6 +88,9 @@ holidays_to_json <- function(holidays, energy_code, energy_desc, prettify = FALS
   hol
 }
 
+
+# Import rate information and convert to streaming ------------------------
+
 #' TOU to streaming rate converter
 #'
 #' @description
@@ -99,12 +102,13 @@ holidays_to_json <- function(holidays, energy_code, energy_desc, prettify = FALS
 #' @param start_date atomic character or Date for the beginning of the period the streaming rate should cover
 #' @param end_date atomic character or Date for the end of the period the streaming rate should cover
 #' @param time_zone atomic character the time zone where the rate is offered. This should be one of the time zones listed in OlsonNames(). Dates and times in the CSV are assumed to be in the specified time zone.
+#' @param verbose atomic logical whether to print messages to support debugging
 #'
 #' @importFrom lubridate with_tz
 #' @import data.table
 #' @export
 TOU_to_streaming <- function(holidays, tou_file, start_date,
-                             end_date, time_zone = "America/Los_Angeles") {
+                             end_date, time_zone = "America/Los_Angeles", verbose = FALSE) {
   if (!requireNamespace("lubridate", quietly = TRUE)) {
     stop(
       "Package \"lubridate\" must be installed to use this function.",
@@ -140,11 +144,13 @@ TOU_to_streaming <- function(holidays, tou_file, start_date,
                                              "Value", "Unit"))
 
   # Create table of prices for all hours of the year for each rate -----------
-  prices <- CJ(RIN = tou$RIN,
-               DateStart = seq(as.IDate(start_date), as.IDate(end_date), by = "day"),
-               TimeStart = seq(as.ITime("00:00"), as.ITime("23:00"), by = 3600),
-               unique = TRUE)
-  prices <- prices[unique(tou[, .(RIN, Unit)]), on = "RIN", allow.cartesian = TRUE]
+  dateTimeStart <- IDateTime(seq(as.POSIXct(start_date),
+                                as.POSIXct(paste(end_date, "23:00")),
+                                by = "hour"))
+  rins <- unique(tou[, .(RIN, Unit)])
+  prices <- rins[, dateTimeStart[, .(DateStart = idate, TimeStart = itime)],
+                 by = .(RIN, Unit)]
+
   # Set Day to equal Monday = 1 through Sunday = 7
   prices[, DayType := wday(DateStart) - 1]
   prices[DayType == 0, DayType := 7]
@@ -173,6 +179,13 @@ TOU_to_streaming <- function(holidays, tou_file, start_date,
   # Drop hours due to DST changes
   # p2 <- unique(p2, by = c("RIN", "Unit", "DateStart", "TimeStart"))
   p2[, c("DateEnd", "TimeEnd") := IDateTime(lubridate::with_tz(starttime + 3599, tz = "UTC"))]
+  # Check for overlapping values and print if verbose = TRUE
+  if(verbose) {
+    p_dups <- duplicated(p2, by = c("RIN", "DateStart", "TimeStart", "DateEnd", "TimeEnd", "Unit"))
+    print("Duplicated values:")
+    print(p2[p_dups])
+  }
+
   p2[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
          RatePlan_Url, RateType, Sector, API_Url, DateStart,
          TimeStart, DateEnd, TimeEnd, DayStart = DayType, DayEnd = DayType, ValueName, Value, Unit)]
@@ -275,18 +288,22 @@ rate_to_json <- function(DT, prettify = FALSE) {
                                              "TimeStart", "DateEnd", "TimeEnd", "DayStart",
                                              "DayEnd", "ValueName", "Value", "Unit"))
 
-  rateinfo <- unique(DT[, .(RIN, AltRateName1, AltRateName2, SignupCloseDate, RateName,
+  setnames(DT, old = "RIN", new = "RateID")
+  rateinfo <- unique(DT[, .(RateID, AltRateName1, AltRateName2, SignupCloseDate, RateName,
                             RatePlan_Url, RateType, Sector, API_Url)])
+
   # Build list to convert to JSON
-  rtl <- vector("list", length = nrow(rateinfo))
-  for (rt in seq_along(rtl)) {
-    rtl[[rt]] <- c(as.list(rateinfo[rt]),
-                   list(ValueInformation = DT[RIN == rateinfo[rt, RIN],
+  ri <- vector("list", length = nrow(rateinfo))
+  for (rt in seq_along(ri)) {
+    ri[[rt]] <- c(as.list(rateinfo[rt]),
+                   list(ValueInformation = DT[RateID == rateinfo[rt, RateID],
                                               .(ValueName, DateStart, DateEnd,
                                                 DayStart, DayEnd, TimeStart,
                                                 TimeEnd, Value, Unit)]))
   }
-  DemandData <- jsonlite::toJSON(rtl, dataframe = "rows", auto_unbox = TRUE, pretty = prettify)
+  rtl <- list(DemandData = list(RateInformation = ri))
+
+  DemandData <- jsonlite::toJSON(rtl, dataframe = "rows", pretty = prettify, auto_unbox = TRUE)
   DemandData <- paste0(DemandData, "\n")
 
   DemandData
@@ -382,6 +399,7 @@ rate_to_xml <- function(DT) {
 #' @description
 #' Function to save JSON or XML encoded rate to a file.
 #' This also works to save encoded holidays to a file.
+#' If the file already exists, it will be overwritten with a warning.
 #'
 #' @param encoded_rate atomic character created by rate_to_xml or rate_to_json
 #' @param file_name atomic character with the path where you want to save the file
