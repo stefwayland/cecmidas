@@ -59,7 +59,7 @@ MIDAS <- R6::R6Class("MIDAS",
                         print("MIDAS rate API service")
                         print(paste("username:", private$username))
                         print(paste("token:", private$token))
-                        print(paste("token age:", format(Sys.time() - private$token_dt, units = "secs"), "seconds"))
+                        print(paste("token age:", format(Sys.time() - private$token_dt, units = "secs")))
                       },
 
                       #' @title Register a username and password
@@ -248,9 +248,12 @@ MIDAS <- R6::R6Class("MIDAS",
                       lookups = function(table_name,
                                          new_token = FALSE,
                                          ...) {
-                        checkmate::check_choice(table_name, c())
+                        checkmate::check_choice(table_name,
+                                                c("Country", "Daytype", "Distribution", "Enduse", "Energy",
+                                                  "Location", "RateType", "Sector", "State", "Unit"),
+                                                null.ok = FALSE)
                         self$get_token(new_token = new_token, ...)
-                        if (is.na(table_name)) stop("Must provide lookup table name.")
+                        # if (is.na(table_name)) stop("Must provide lookup table name.")
                         cli <- crul::HttpClient$new(
                           self$midas_url,
                           headers = list(Accept = paste0("application/", private$data_format),
@@ -268,8 +271,9 @@ MIDAS <- R6::R6Class("MIDAS",
                       #' @description
                       #' Get holiday table information.
                       #' @param new_token logical Force requesting a new token, FALSE by default
+                      #' @param ordered logical Sort returned data? TRUE by default
                       #' @param ... additional parameters passed to curl
-                      holiday = function(new_token = FALSE,
+                      holiday = function(new_token = FALSE, ordered = TRUE,
                                          ...) {
                         self$get_token(new_token = new_token, ...)
                         cli <- crul::HttpClient$new(
@@ -281,7 +285,12 @@ MIDAS <- R6::R6Class("MIDAS",
                         res <- cli$get(path = "api/holiday")
                         res$raise_for_status()
                         res$raise_for_ct_json()
-                        return(jsonlite::fromJSON(res$parse("UTF-8")))
+                        if (ordered) {
+                          dat <- jsonlite::fromJSON(res$parse("UTF-8"))
+                          return(dat[order(dat$EnergyCode, dat$DateOfHoliday),])
+                        } else {
+                          return(jsonlite::fromJSON(res$parse("UTF-8")))
+                        }
                       },
 
                       #' @title Upload a new rate or rate change

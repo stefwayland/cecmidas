@@ -241,13 +241,15 @@ Location, RateType, Sector, State, and Unit.
 \subsection{Method \code{holiday()}}{
 Get holiday table information.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{MIDAS$holiday(new_token = FALSE, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{MIDAS$holiday(new_token = FALSE, ordered = TRUE, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
 \item{\code{new_token}}{logical Force requesting a new token, FALSE by default}
+
+\item{\code{ordered}}{logical Sort returned data? TRUE by default}
 
 \item{\code{...}}{additional parameters passed to curl}
 }
